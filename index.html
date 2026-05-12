@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mobile / Android System Design Playbook</title>
+<meta name="description" content="40 mobile/Android system designs for SDE-3 interviews. Easy to hard. Each with elevator pitch, ASCII architecture diagram, back-of-envelope numbers, Kotlin code, cross-questions, and Junior vs Staff signal contrast." />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0e1117; color: #c9d1d9;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; line-height: 1.6;
+  }
+  .wrap { max-width: 760px; width: 100%; }
+  .hero {
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    border-radius: 18px; padding: 48px 36px; color: #fff; margin-bottom: 24px;
+  }
+  h1 { font-size: 2.4rem; line-height: 1.15; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .sub { font-size: 1.1rem; opacity: 0.92; margin-bottom: 22px; }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 5px 12px; border-radius: 999px; font-size: 0.82rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 22px; text-decoration: none; color: inherit;
+    transition: border-color 0.15s, transform 0.15s;
+    display: block;
+  }
+  .card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+  .card-title { font-size: 1.15rem; font-weight: 700; color: #58a6ff; margin-bottom: 6px; }
+  .card-desc { font-size: 0.92rem; color: #8b949e; }
+  .card-meta { font-size: 0.78rem; color: #6e7681; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .toc {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 22px 26px;
+  }
+  .toc h2 { font-size: 1.15rem; margin-bottom: 14px; color: #f0f6fc; }
+  .toc-tier { margin-bottom: 14px; }
+  .toc-tier h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.6px; color: #8b949e; margin-bottom: 6px; }
+  .toc-tier p { font-size: 0.92rem; }
+  .footer { text-align: center; margin-top: 28px; font-size: 0.85rem; color: #6e7681; }
+  .footer a { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>Mobile / Android System Design</h1>
+    <p class="sub">The SDE-3 Interview Playbook — 40 designs from easy to hard, plus a 90-second universal opening script, cheat sheet, and 50-term glossary.</p>
+    <div class="badges">
+      <span class="badge">40 Designs</span>
+      <span class="badge">178-page PDF</span>
+      <span class="badge">Kotlin · Compose · Coroutines</span>
+      <span class="badge">2026 Edition · v2</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="mobile-system-design-guide.html">
+      <div class="card-title">📖 Read the interactive guide</div>
+      <div class="card-desc">Dark mode, search (⌘K), sticky table of contents, copy-code, mark-as-studied. Best on desktop.</div>
+      <div class="card-meta">HTML · 409 KB</div>
+    </a>
+    <a class="card" href="mobile-system-design-guide.pdf">
+      <div class="card-title">📄 Download the PDF</div>
+      <div class="card-desc">Print-ready 178-page playbook. Read offline on any device.</div>
+      <div class="card-meta">PDF · 4.8 MB</div>
+    </a>
+  </div>
+
+  <div class="toc">
+    <h2>What's covered</h2>
+    <div class="toc-tier">
+      <h3>Easy (5)</h3>
+      <p>Notes/TODO with sync · Weather · Local Gallery · Calculator · News Reader</p>
+    </div>
+    <div class="toc-tier">
+      <h3>Medium (10)</h3>
+      <p>Image-loading library (Glide) · Generic cache · Pagination · Push SDK · Analytics SDK · Offline-first sync · Twitter/IG feed · Search autocomplete · Calendar · Resumable upload</p>
+    </div>
+    <div class="toc-tier">
+      <h3>Hard (10)</h3>
+      <p>WhatsApp chat · Spotify · YouTube · Google Photos · Instagram Stories · Uber rider · Google Maps + nav · Netflix · Tinder · Food delivery</p>
+    </div>
+    <div class="toc-tier">
+      <h3>Classic LLD / OOD (10)</h3>
+      <p>LRU cache · Rate limiter · Parking lot · Elevator · Chess · Snake &amp; Ladder · Tic-tac-toe · ATM · Vending machine · Splitwise</p>
+    </div>
+    <div class="toc-tier">
+      <h3>Bonus SDK (5, v2)</h3>
+      <p>Live Streaming · A/B Testing &amp; Feature Flags · Crash Reporting SDK · E-commerce · Wear OS / Phone Sync</p>
+    </div>
+  </div>
+
+  <p class="footer">
+    Open source on <a href="https://github.com/kalyan4812/mobile-system-design-playbook">GitHub</a> ·
+    Built for mobile system design interview prep
+  </p>
+</div>
+</body>
+</html>
