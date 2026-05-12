@@ -22,8 +22,9 @@
   .sub { font-size: 1.1rem; opacity: 0.92; margin-bottom: 22px; }
   .badges { display: flex; gap: 10px; flex-wrap: wrap; }
   .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 5px 12px; border-radius: 999px; font-size: 0.82rem; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  .grid-row-2 { grid-template-columns: 1fr 1fr; }
   .card {
     background: #161b22; border: 1px solid #30363d; border-radius: 12px;
     padding: 22px; text-decoration: none; color: inherit;
@@ -59,22 +60,47 @@
     </div>
   </div>
 
-  <div class="grid">
-    <a class="card" href="mobile-system-design-guide.html">
-      <div class="card-title">📖 Read the interactive guide</div>
-      <div class="card-desc">Dark mode, search (⌘K), sticky table of contents, copy-code, mark-as-studied. Best on desktop.</div>
-      <div class="card-meta">HTML · 409 KB</div>
-    </a>
-    <a class="card" href="mobile-system-design-guide.pdf">
-      <div class="card-title">📄 Download the PDF</div>
-      <div class="card-desc">Print-ready 178-page playbook. Read offline on any device.</div>
-      <div class="card-meta">PDF · 4.8 MB</div>
-    </a>
-    <a class="card" href="claude-mobile-system-designs.pdf">
-      <div class="card-title">📚 Claude's companion PDF</div>
-      <div class="card-desc">A separate Claude-generated take on mobile system designs. Different perspective, useful as a cross-reference.</div>
-      <div class="card-meta">PDF · 340 KB · 140 pages</div>
-    </a>
+  <div style="margin-bottom: 28px;">
+    <h2 style="font-size: 1.3rem; font-weight: 600; margin-bottom: 14px; color: #58a6ff;">📐 Mobile System Design Playbook (40 designs)</h2>
+    <div class="grid">
+      <a class="card" href="mobile-system-design-guide.html">
+        <div class="card-title">📖 Interactive guide</div>
+        <div class="card-desc">40 system designs (Spotify, Uber, Glide, Chess…). Dark mode, search (⌘K), sticky TOC, copy-code, mark-as-studied.</div>
+        <div class="card-meta">HTML · 409 KB</div>
+      </a>
+      <a class="card" href="mobile-system-design-guide.pdf">
+        <div class="card-title">📄 Print-ready PDF</div>
+        <div class="card-desc">178-page playbook. 40 designs · cheat sheet · 90-second universal opening · 50-term glossary.</div>
+        <div class="card-meta">PDF · 4.8 MB · 178 pages</div>
+      </a>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 28px;">
+    <h2 style="font-size: 1.3rem; font-weight: 600; margin-bottom: 14px; color: #a371f7;">❓ Top 210 Android Interview Questions (2026)</h2>
+    <div class="grid">
+      <a class="card" href="android-interview-210.html">
+        <div class="card-title">📖 Interactive guide</div>
+        <div class="card-desc">210 Q&amp;A across 26 categories: Kotlin, Coroutines, Compose, Architecture, Internals, GoF Patterns, FAANG-tier deep dives, trade-offs.</div>
+        <div class="card-meta">HTML · 357 KB</div>
+      </a>
+      <a class="card" href="android-interview-210.pdf">
+        <div class="card-title">📄 Print-ready PDF</div>
+        <div class="card-desc">209-page interview prep covering everything from <code>val/var</code> to Binder IPC and Compose snapshot internals.</div>
+        <div class="card-meta">PDF · 6.1 MB · 209 pages</div>
+      </a>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 28px;">
+    <h2 style="font-size: 1.3rem; font-weight: 600; margin-bottom: 14px; color: #8b949e;">📚 Bonus: Claude's companion mobile system design PDF</h2>
+    <div class="grid">
+      <a class="card" href="claude-mobile-system-designs.pdf" style="grid-column: 1 / -1;">
+        <div class="card-title">📚 Claude's mobile system designs</div>
+        <div class="card-desc">A separate Claude-generated take on mobile system designs. Useful as a cross-reference for different framing.</div>
+        <div class="card-meta">PDF · 340 KB · 140 pages</div>
+      </a>
+    </div>
   </div>
 
   <div class="toc">

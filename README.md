@@ -1,4 +1,19 @@
-# Mobile / Android System Design 
+# Android Interview Prep — System Design + 210 Interview Q&A
+
+This repo bundles two complete prep guides for Android SDE-2 / SDE-3 / Staff interviews:
+
+| Guide | Pages | What |
+|---|---|---|
+| `mobile-system-design-guide.html` / `.pdf` | 178 | 40 mobile/Android system designs (Spotify, Uber, Glide, Chess…) with elevator pitches, ASCII diagrams, code, cross-questions, "don't say this" traps, 90-second universal opening script, cheat sheet, 50-term glossary |
+| `android-interview-210.html` / `.pdf` | 209 | 210 interview questions across 26 categories: Kotlin · Coroutines · Compose · Architecture · Internals · GoF Patterns · FAANG-tier deep dives · Library Internals · Specialized topics (a11y, Scoped Storage, custom Layout) · Trade-off decisions ("Why X not Y") |
+| `claude-mobile-system-designs.pdf` | 140 | Bonus: a separate Claude-generated take on mobile system designs |
+| `index.html` | — | Landing page (live at https://kalyan4812.github.io/mobile-system-design-playbook/) |
+
+Read the **interactive HTML** in a browser for dark mode + search (⌘K) + sticky TOC + copy-code + mark-as-studied. Or grab the PDF for offline.
+
+---
+
+# Mobile / Android System Design — SDE-3 Interview Playbook (v2)
 
 A self-contained study guide covering **40 system designs** (30 mobile/Android product
 designs + 10 classic LLD/OOD warm-ups), sorted easy → hard, plus reusable
