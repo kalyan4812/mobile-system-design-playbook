@@ -1,4 +1,4 @@
-# Mobile / Android System Design — SDE-3 Interview Playbook (v2)
+# Mobile / Android System Design 
 
 A self-contained study guide covering **40 system designs** (30 mobile/Android product
 designs + 10 classic LLD/OOD warm-ups), sorted easy → hard, plus reusable
