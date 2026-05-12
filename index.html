@@ -22,8 +22,8 @@
   .sub { font-size: 1.1rem; opacity: 0.92; margin-bottom: 22px; }
   .badges { display: flex; gap: 10px; flex-wrap: wrap; }
   .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 5px 12px; border-radius: 999px; font-size: 0.82rem; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
   .card {
     background: #161b22; border: 1px solid #30363d; border-radius: 12px;
     padding: 22px; text-decoration: none; color: inherit;
@@ -69,6 +69,11 @@
       <div class="card-title">📄 Download the PDF</div>
       <div class="card-desc">Print-ready 178-page playbook. Read offline on any device.</div>
       <div class="card-meta">PDF · 4.8 MB</div>
+    </a>
+    <a class="card" href="claude-mobile-system-designs.pdf">
+      <div class="card-title">📚 Claude's companion PDF</div>
+      <div class="card-desc">A separate Claude-generated take on mobile system designs. Different perspective, useful as a cross-reference.</div>
+      <div class="card-meta">PDF · 340 KB · 140 pages</div>
     </a>
   </div>
 
