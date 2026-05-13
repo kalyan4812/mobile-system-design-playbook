@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gradle Deep Dive — Android Build System Cheat Sheet</title>
+<meta name="description" content="A dense personal cheat sheet on Gradle for Android: what it is, why it exists, internals (3 phases, task DAG, daemon, configuration cache, build cache), AGP, build types vs flavors vs variants, source sets, dependency configurations, custom tasks, convention plugins, multi-module patterns, performance tuning, common mistakes, FAANG-level interview Q&A." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 28px; max-width: 1300px; margin: 0 auto; padding: 0 20px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+  .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 18px 6px 24px 0; border-right: 1px solid var(--border); font-size: 0.84rem; }
+  .sidebar a { display: block; color: var(--fg); text-decoration: none; padding: 4px 10px; border-radius: 6px; line-height: 1.3; }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+  .topbar { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 8px 20px; display: flex; gap: 10px; align-items: center; backdrop-filter: blur(8px); }
+  .topbar input.search { flex: 1; max-width: 420px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--fg); font-size: 0.92rem; }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--fg); font-size: 0.82rem; cursor: pointer; }
+  .iconbtn:hover { background: var(--surface-2); }
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 { font-size: 1.4rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); scroll-margin-top: 70px; }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+  .cover { text-align: center; padding: 36px 20px 26px; margin-bottom: 22px; background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%); color: #fff; border-radius: 14px; }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+  code { background: var(--surface); color: #c7254e; padding: 2px 5px; border-radius: 4px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 0.88em; border: 1px solid var(--border); }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre { background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 0.78rem; line-height: 1.5; margin: 8px 0 12px; border: 1px solid var(--code-border); position: relative; }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn { position: absolute; top: 6px; right: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #c9d1d9; padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+  .diagram { background: var(--code-bg); color: #e6edf3; padding: 14px 16px; border-radius: 10px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 0.78rem; line-height: 1.45; overflow-x: auto; white-space: pre; margin: 10px 0 14px; border: 1px solid var(--code-border); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 10px; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface); color: var(--fg-strong); font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .callout { background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem; }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.92rem; }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+  .recall-card { background: var(--surface); border: 2px solid var(--accent); border-radius: 10px; padding: 16px 20px; margin: 16px 0; font-size: 0.92rem; line-height: 1.65; }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, .diagram, table, .callout, .two-col { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Gradle · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Gradle Deep Dive</h1>
+  <div class="subtitle">For Android · 2026 · From "what is it" to FAANG-level internals</div>
+  <div class="badges">
+    <span class="badge">3 build phases</span>
+    <span class="badge">AGP · KSP</span>
+    <span class="badge">Configuration cache</span>
+    <span class="badge">Convention plugins</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a single dense reference covering Gradle from first principles through the internals FAANG interviews drill on. Original prose; standard idiomatic Kotlin DSL examples. Pair with the rest of the cheat sheets in this repo.
+</section>
+
+<!-- =============== 1. WHAT IS GRADLE =============== -->
+<h2 id="s1">1. What is Gradle? — core concepts in 60 seconds</h2>
+
+<p><strong>Gradle is a build automation tool.</strong> Given a project (some source files + dependencies + recipes for what to build), Gradle figures out what tasks need to run, in what order, and runs them — caching everything it can to avoid repeated work.</p>
+
+<p>Four building blocks:</p>
+
+<table>
+  <thead><tr><th>Concept</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Project</strong></td><td>A unit being built. A typical Android app has multiple — the root project + each module (<code>:app</code>, <code>:feature:home</code>, etc.). Defined per <code>build.gradle.kts</code>.</td></tr>
+    <tr><td><strong>Task</strong></td><td>A single unit of work — compile this, copy that, generate this resource file. Tasks have inputs and outputs and can be skipped if up-to-date.</td></tr>
+    <tr><td><strong>Plugin</strong></td><td>A bundle of tasks + configuration that adds capability. The Android Gradle Plugin (AGP) is what teaches Gradle how to build APKs/AABs.</td></tr>
+    <tr><td><strong>Build script</strong></td><td>A Kotlin (<code>.kts</code>) or Groovy (<code>.gradle</code>) file that configures the project — applies plugins, declares dependencies, customizes tasks.</td></tr>
+  </tbody>
+</table>
+
+<p>Tasks form a <strong>directed acyclic graph (DAG)</strong> — the task graph. Asking Gradle to run <code>:app:assembleRelease</code> implicitly schedules every task that produces inputs for it (compile Kotlin, process resources, dex, sign, package…). That's the magic — you only declare relationships; Gradle figures out the order.</p>
+
+<!-- =============== 2. WHY GRADLE EXISTS =============== -->
+<h2 id="s2">2. Why Gradle was created — the build-tool history</h2>
+
+<table>
+  <thead><tr><th>Era</th><th>Tool</th><th>Why it failed for modern apps</th></tr></thead>
+  <tbody>
+    <tr><td>1976+</td><td>Make</td><td>Imperative shell-script feel, terrible incremental builds, no dependency management.</td></tr>
+    <tr><td>2000+</td><td>Apache Ant</td><td>XML-based, declarative but verbose, no convention; every project reinvented common tasks.</td></tr>
+    <tr><td>2004+</td><td>Apache Maven</td><td>Convention over configuration, dependency management built-in. But: rigid lifecycle, hard to customize without writing a plugin in Java, XML is painful for non-trivial logic.</td></tr>
+    <tr><td>2009+</td><td>Gradle</td><td>Convention + flexibility. Programmatic build scripts (Groovy/Kotlin DSL). Incremental, parallel, and cacheable by design. Won Android in 2014.</td></tr>
+    <tr><td>2015+</td><td>Bazel (Google)</td><td>Hermetic, distributed builds. Used internally at Google. Steeper setup than Gradle; less Android Studio integration.</td></tr>
+  </tbody>
+</table>
+
+<h3>What would happen without Gradle (or any modern build tool)?</h3>
+<ul>
+  <li>Every developer would need a wiki page of "how to build" with 30 manual steps</li>
+  <li>Dependency versions would conflict; "works on my machine" forever</li>
+  <li>Multi-module = manual ordering of compile commands</li>
+  <li>No incremental builds — every change re-compiles everything (slow)</li>
+  <li>No build caching — same code re-built across machines</li>
+  <li>Variants (debug/release/free/paid) = N copies of the project</li>
+</ul>
+
+<p>Gradle solves all of these with one programmable abstraction: the task graph.</p>
+
+<!-- =============== 3. GRADLE VS MAVEN =============== -->
+<h2 id="s3">3. Gradle vs Maven vs Bazel — comparison</h2>
+
+<table>
+  <thead><tr><th></th><th>Gradle</th><th>Maven</th><th>Bazel</th></tr></thead>
+  <tbody>
+    <tr><td>Build script language</td><td>Groovy DSL or Kotlin DSL (.kts)</td><td>XML (pom.xml)</td><td>Starlark (Python-like)</td></tr>
+    <tr><td>Convention</td><td>Yes (per plugin) + customizable</td><td>Yes (rigid, hard to customize)</td><td>Yes (BUILD files declare what's there)</td></tr>
+    <tr><td>Programmability</td><td>Full (it's a real language)</td><td>Limited (need to write Java plugin)</td><td>Limited (Starlark is sandboxed)</td></tr>
+    <tr><td>Incremental builds</td><td>Excellent (input/output tracking)</td><td>Coarse (per module)</td><td>Excellent (action graph + cache)</td></tr>
+    <tr><td>Build cache (local + remote)</td><td>Yes</td><td>No (per-module artifact only)</td><td>Yes (huge advantage at scale)</td></tr>
+    <tr><td>Hermetic builds</td><td>Best-effort (not enforced)</td><td>No</td><td>Strictly enforced</td></tr>
+    <tr><td>Android support</td><td>First-class (AGP)</td><td>Outdated, abandoned</td><td>Possible but rough</td></tr>
+    <tr><td>Used by</td><td>Android default; many JVM projects</td><td>Older Java/JVM projects</td><td>Google internal; Uber Android; some FAANG</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 4. CRITICAL CLARIFICATION =============== -->
+<h2 id="s4">4. Critical clarification — does Groovy/Kotlin DSL ship to users?</h2>
+
+<div class="callout warn">
+<strong>Common confusion:</strong> "How does Android understand Groovy in build.gradle? Is the Groovy interpreter in DEX?"<br/>
+<strong>Answer:</strong> <strong>No.</strong> Build scripts are <em>build-time-only</em>. They run on your developer machine / CI server BEFORE the APK is created. They are NOT packaged in the APK and end users never see them.
+</div>
+
+<h3>What's actually inside an APK / AAB</h3>
+<table>
+  <thead><tr><th>File</th><th>What</th></tr></thead>
+  <tbody>
+    <tr><td><code>classes.dex</code> (and classes2.dex, …)</td><td>Your Kotlin/Java code compiled to <strong>DEX bytecode</strong> (Dalvik EXecutable format)</td></tr>
+    <tr><td><code>AndroidManifest.xml</code></td><td>Binary XML; describes activities, services, perms</td></tr>
+    <tr><td><code>resources.arsc</code></td><td>Compiled resource table</td></tr>
+    <tr><td><code>res/</code></td><td>Drawable XMLs, layout XMLs (binary), values</td></tr>
+    <tr><td><code>assets/</code></td><td>Raw asset files</td></tr>
+    <tr><td><code>lib/&lt;abi&gt;/*.so</code></td><td>Native libraries (per CPU ABI)</td></tr>
+    <tr><td><code>META-INF/</code></td><td>Signing manifest + signatures</td></tr>
+    <tr><td><code>baseline-prof.txt</code> / <code>baseline.profm</code></td><td>(Optional) Baseline Profile</td></tr>
+  </tbody>
+</table>
+
+<p>That's it. <strong>Zero Gradle, zero Groovy, zero build script content.</strong></p>
+
+<h3>The build flow at a glance</h3>
+<div class="diagram">DEVELOPER MACHINE / CI SERVER (build time)
+┌──────────────────────────────────────────────────────────────┐
+│  *.kt source files  +  build.gradle.kts  +  resources/      │
+│                            │                                 │
+│             ┌──────────────┴──────────────┐                  │
+│             ▼                             ▼                  │
+│  1. Gradle reads build scripts (Groovy or Kotlin runtime)    │
+│  2. Builds task DAG                                          │
+│  3. Runs tasks: kotlinc → R8 → D8 (dex) → aapt2 → apksigner  │
+└──────────────────────────────┬───────────────────────────────┘
+                               ▼
+                       ┌───────────────┐
+                       │   APK / AAB   │   (no Groovy here!)
+                       │  classes.dex  │
+                       │  resources    │
+                       │  manifest     │
+                       │  signatures   │
+                       └───────┬───────┘
+                               ▼
+                       END USER DEVICE
+                       ART runtime executes DEX bytecode</div>
+
+<p>So when someone asks "how does Android understand Groovy", the answer is "it doesn't — and it doesn't need to. The Groovy/Kotlin in build scripts is interpreted/compiled at build time on the developer's machine; only the resulting compiled DEX bytecode is shipped to users, and ART (Android Runtime) executes that."</p>
+
+<!-- =============== 5. GROOVY VS KOTLIN DSL =============== -->
+<h2 id="s5">5. Build scripts: Groovy DSL (.gradle) vs Kotlin DSL (.gradle.kts)</h2>
+
+<table>
+  <thead><tr><th></th><th>Groovy (build.gradle)</th><th>Kotlin (build.gradle.kts)</th></tr></thead>
+  <tbody>
+    <tr><td>Syntax</td><td>Dynamic, type-loose</td><td>Statically typed</td></tr>
+    <tr><td>IDE autocomplete</td><td>Limited</td><td>Excellent (it's Kotlin)</td></tr>
+    <tr><td>Refactoring support</td><td>Poor</td><td>Full Kotlin refactoring</td></tr>
+    <tr><td>Error visibility</td><td>Runtime</td><td>Compile-time (build-script compile)</td></tr>
+    <tr><td>Build script compile cost</td><td>Faster initial parse</td><td>Slower first compile, then cached</td></tr>
+    <tr><td>2026 default</td><td>Legacy projects</td><td>Recommended for new projects</td></tr>
+  </tbody>
+</table>
+
+<h3>Side-by-side</h3>
+<pre><code><span class="com">// Groovy DSL — build.gradle</span>
+android {
+    compileSdk 34
+    defaultConfig {
+        applicationId <span class="str">"com.example.app"</span>
+        minSdk 24
+    }
+}
+dependencies {
+    implementation <span class="str">"androidx.core:core-ktx:1.13.1"</span>
+}</code></pre>
+
+<pre><code><span class="com">// Kotlin DSL — build.gradle.kts</span>
+android {
+    compileSdk = <span class="num">34</span>
+    defaultConfig {
+        applicationId = <span class="str">"com.example.app"</span>
+        minSdk = <span class="num">24</span>
+    }
+}
+dependencies {
+    implementation(<span class="str">"androidx.core:core-ktx:1.13.1"</span>)
+}</code></pre>
+
+<p>Subtle differences: Kotlin requires explicit <code>=</code> for assignments and parentheses around method calls. The Kotlin DSL is the long-term direction; AGP and Gradle ship type-safe accessors that make Kotlin DSL ergonomic.</p>
+
+<!-- =============== 6. THE 3 PHASES =============== -->
+<h2 id="s6">6. ★ Internals — the 3 phases of every Gradle build</h2>
+
+<p>This is the single most important Gradle concept. Every build runs through three phases in order:</p>
+
+<div class="diagram">┌──────────────────────────────────────────────────────────────┐
+│ PHASE 1 — INITIALIZATION                                     │
+│  - Find settings.gradle.kts                                  │
+│  - Decide which projects participate (single vs multi-module)│
+│  - Create a Project instance per module                      │
+└────────────────────────────┬─────────────────────────────────┘
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│ PHASE 2 — CONFIGURATION                                      │
+│  - Execute every build.gradle.kts script (all modules)       │
+│  - Each script registers tasks + plugins                     │
+│  - Build the COMPLETE task graph (DAG)                       │
+│  - NOTHING actually compiles or runs yet                     │
+└────────────────────────────┬─────────────────────────────────┘
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│ PHASE 3 — EXECUTION                                          │
+│  - Determine which tasks the user asked for                  │
+│  - Walk the DAG, run only required tasks (in dep order)      │
+│  - Skip tasks whose inputs/outputs are up-to-date            │
+│  - Use build cache if available                              │
+└──────────────────────────────────────────────────────────────┘</div>
+
+<h3>Why this matters for performance</h3>
+<ul>
+  <li><strong>Configuration is expensive</strong> — every script runs even if you only want to compile one module. Old Android projects took 30+ s in this phase alone.</li>
+  <li><strong>Configuration cache</strong> (Gradle 7.5+) serializes the configured task graph to disk; subsequent builds skip configuration entirely if nothing in the build scripts changed.</li>
+  <li><strong>Avoid expensive work in configuration phase</strong>: don't read files, query network, or call git from a build script's top level — it runs every build.</li>
+  <li><strong>Use lazy task configuration</strong>: <code>tasks.register("foo") { ... }</code> instead of <code>tasks.create("foo") { ... }</code> — register defers the body to execution phase.</li>
+</ul>
+
+<h3>The same thing in code</h3>
+<pre><code><span class="com">// In settings.gradle.kts — INITIALIZATION phase</span>
+include(<span class="str">":app"</span>, <span class="str">":feature:home"</span>, <span class="str">":core:network"</span>)
+
+<span class="com">// In :app/build.gradle.kts — CONFIGURATION phase (runs once)</span>
+plugins {
+    id(<span class="str">"com.android.application"</span>)
+    kotlin(<span class="str">"android"</span>)
+}
+
+android {
+    compileSdk = <span class="num">34</span>     <span class="com">// runs in configuration</span>
+}
+
+tasks.register(<span class="str">"printTime"</span>) {
+    doLast {                <span class="com">// EXECUTION phase — runs only when task is invoked</span>
+        println(<span class="str">"Built at ${java.time.Instant.now()}"</span>)
+    }
+}</code></pre>
+
+<!-- =============== 7. THE TASK DAG =============== -->
+<h2 id="s7">7. The task graph (DAG) — how Gradle decides what runs</h2>
+
+<p>Every task has inputs (files, properties) and outputs (files). Tasks declare dependencies on other tasks via <code>dependsOn</code> or implicitly (via input being another task's output).</p>
+
+<pre><code><span class="com">// Task A depends on Task B's output</span>
+tasks.register&lt;Copy&gt;(<span class="str">"copyAsset"</span>) {
+    from(<span class="str">"src/main/assets"</span>)
+    into(layout.buildDirectory.dir(<span class="str">"copied"</span>))
+}
+
+tasks.register(<span class="str">"deploy"</span>) {
+    dependsOn(<span class="str">"copyAsset"</span>)         <span class="com">// explicit</span>
+    doLast { ... }
+}</code></pre>
+
+<h3>Up-to-date checks (the heart of Gradle's speed)</h3>
+<p>Each time a task runs, Gradle hashes its inputs and outputs. If both match the previous run, the task is <strong>skipped</strong> — saving full re-execution. This is why incremental builds in Gradle are blazing fast.</p>
+
+<pre><code>tasks.register(<span class="str">"generate"</span>) {
+    inputs.dir(<span class="str">"schemas"</span>)              <span class="com">// inputs Gradle hashes</span>
+    inputs.property(<span class="str">"version"</span>, <span class="str">"1.0"</span>)
+    outputs.dir(layout.buildDirectory.dir(<span class="str">"generated"</span>))   <span class="com">// outputs Gradle tracks</span>
+    doLast { ... }
+}</code></pre>
+
+<h3>Build cache — across machines</h3>
+<p>The <strong>build cache</strong> stores task outputs keyed by input hashes. If teammate A built a task with the same inputs an hour ago, teammate B downloads the result instead of rebuilding. Configure with <code>--build-cache</code>; for remote cache use Gradle Enterprise or a self-hosted HTTP cache.</p>
+
+<!-- =============== 8. ANATOMY OF AN ANDROID build.gradle.kts =============== -->
+<h2 id="s8">8. Anatomy of an Android <code>build.gradle.kts</code> — line by line</h2>
+
+<pre><code><span class="com">// app/build.gradle.kts</span>
+
+plugins {
+    id(<span class="str">"com.android.application"</span>)            <span class="com">// applies AGP — adds android{} extension and tasks like assembleRelease</span>
+    kotlin(<span class="str">"android"</span>)                           <span class="com">// Kotlin Android plugin</span>
+    id(<span class="str">"com.google.devtools.ksp"</span>)             <span class="com">// KSP for annotation processing</span>
+    id(<span class="str">"com.google.dagger.hilt.android"</span>)      <span class="com">// Hilt</span>
+}
+
+android {
+    namespace = <span class="str">"com.example.app"</span>                <span class="com">// R class package + manifest tools</span>
+    compileSdk = <span class="num">34</span>                              <span class="com">// API level used at compile time</span>
+
+    defaultConfig {
+        applicationId = <span class="str">"com.example.app"</span>        <span class="com">// final package name on Play</span>
+        minSdk = <span class="num">24</span>                              <span class="com">// minimum supported API</span>
+        targetSdk = <span class="num">34</span>                           <span class="com">// API the app is designed for; affects runtime behaviors</span>
+        versionCode = <span class="num">42</span>                          <span class="com">// integer for Play to compare versions</span>
+        versionName = <span class="str">"1.4.2"</span>                     <span class="com">// human-readable version</span>
+        testInstrumentationRunner = <span class="str">"androidx.test.runner.AndroidJUnitRunner"</span>
+    }
+
+    buildTypes {
+        getByName(<span class="str">"release"</span>) {
+            isMinifyEnabled = <span class="kw">true</span>                <span class="com">// run R8</span>
+            isShrinkResources = <span class="kw">true</span>             <span class="com">// strip unused resources</span>
+            proguardFiles(
+                getDefaultProguardFile(<span class="str">"proguard-android-optimize.txt"</span>),
+                <span class="str">"proguard-rules.pro"</span>
+            )
+            signingConfig = signingConfigs.getByName(<span class="str">"release"</span>)
+        }
+        getByName(<span class="str">"debug"</span>) {
+            applicationIdSuffix = <span class="str">".debug"</span>          <span class="com">// install side-by-side with release</span>
+            isDebuggable = <span class="kw">true</span>
+        }
+    }
+
+    flavorDimensions += <span class="str">"environment"</span>
+    productFlavors {
+        create(<span class="str">"qa"</span>)  { dimension = <span class="str">"environment"</span>; buildConfigField(<span class="str">"String"</span>, <span class="str">"BASE_URL"</span>, <span class="str">"\"https://qa.api.example.com\""</span>) }
+        create(<span class="str">"prod"</span>) { dimension = <span class="str">"environment"</span>; buildConfigField(<span class="str">"String"</span>, <span class="str">"BASE_URL"</span>, <span class="str">"\"https://api.example.com\""</span>) }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = <span class="str">"17"</span>
+    }
+    buildFeatures {
+        compose = <span class="kw">true</span>                              <span class="com">// enable Compose</span>
+        buildConfig = <span class="kw">true</span>                          <span class="com">// generate BuildConfig.kt</span>
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    }
+    packaging {
+        resources.excludes += <span class="str">"/META-INF/{AL2.0,LGPL2.1}"</span>    <span class="com">// avoid META-INF conflicts</span>
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)               <span class="com">// from version catalog</span>
+    implementation(platform(libs.androidx.compose.bom))  <span class="com">// BOM = aligned versions</span>
+    implementation(libs.androidx.compose.ui)
+    ksp(libs.hilt.compiler)
+    testImplementation(libs.junit.jupiter)
+    androidTestImplementation(libs.androidx.compose.test)
+}</code></pre>
+
+<p>Every line above is doing a specific configuration call on the AGP / Kotlin extension objects. None of it executes the build — it sets up the configuration, then Gradle generates tasks based on what it sees.</p>
+
+<!-- =============== 9. SETTINGS.GRADLE =============== -->
+<h2 id="s9">9. <code>settings.gradle.kts</code> &amp; root project</h2>
+
+<pre><code><span class="com">// settings.gradle.kts — runs in INITIALIZATION phase</span>
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)   <span class="com">// enforce: only use repos defined here</span>
+    repositories {
+        google()
+        mavenCentral()
+    }
+    versionCatalogs {
+        create(<span class="str">"libs"</span>) {
+            from(files(<span class="str">"gradle/libs.versions.toml"</span>))
+        }
+    }
+}
+
+rootProject.name = <span class="str">"my-app"</span>
+
+include(
+    <span class="str">":app"</span>,
+    <span class="str">":core:network"</span>,
+    <span class="str">":core:database"</span>,
+    <span class="str">":feature:home"</span>,
+    <span class="str">":feature:profile"</span>
+)
+
+<span class="com">// Optional: included builds for shared convention plugins</span>
+includeBuild(<span class="str">"build-logic"</span>)</code></pre>
+
+<p>Key things <code>settings.gradle.kts</code> does:</p>
+<ul>
+  <li><strong>pluginManagement</strong>: where Gradle looks for plugin declarations</li>
+  <li><strong>dependencyResolutionManagement</strong>: where modules look for dependencies; centralizes repo declarations</li>
+  <li><strong>versionCatalogs</strong>: registers the libs.versions.toml file (next section)</li>
+  <li><strong>include(...)</strong>: declares which subprojects exist</li>
+  <li><strong>includeBuild</strong>: composite-build mechanism for sharing build logic across projects</li>
+</ul>
+
+<!-- =============== 10. VERSION CATALOG =============== -->
+<h2 id="s10">10. Version Catalog (<code>libs.versions.toml</code>) — the modern way</h2>
+
+<p>One TOML file with all your versions, libraries, plugins. Type-safe accessors generated automatically. Replaces the old "ext.versions" Map pattern from pre-2022.</p>
+
+<pre><code><span class="com"># gradle/libs.versions.toml</span>
+
+[versions]
+kotlin           = <span class="str">"2.0.0"</span>
+agp              = <span class="str">"8.5.0"</span>
+compose-bom      = <span class="str">"2024.06.00"</span>
+compose-compiler = <span class="str">"1.5.14"</span>
+hilt             = <span class="str">"2.51.1"</span>
+ksp              = <span class="str">"2.0.0-1.0.21"</span>
+
+[libraries]
+androidx-core-ktx           = { module = <span class="str">"androidx.core:core-ktx"</span>, version = <span class="str">"1.13.1"</span> }
+androidx-compose-bom        = { module = <span class="str">"androidx.compose:compose-bom"</span>, version.ref = <span class="str">"compose-bom"</span> }
+androidx-compose-ui         = { module = <span class="str">"androidx.compose.ui:ui"</span> }
+hilt-android                = { module = <span class="str">"com.google.dagger:hilt-android"</span>, version.ref = <span class="str">"hilt"</span> }
+hilt-compiler               = { module = <span class="str">"com.google.dagger:hilt-compiler"</span>, version.ref = <span class="str">"hilt"</span> }
+
+[plugins]
+android-application = { id = <span class="str">"com.android.application"</span>, version.ref = <span class="str">"agp"</span> }
+android-library     = { id = <span class="str">"com.android.library"</span>, version.ref = <span class="str">"agp"</span> }
+kotlin-android      = { id = <span class="str">"org.jetbrains.kotlin.android"</span>, version.ref = <span class="str">"kotlin"</span> }
+hilt                = { id = <span class="str">"com.google.dagger.hilt.android"</span>, version.ref = <span class="str">"hilt"</span> }
+ksp                 = { id = <span class="str">"com.google.devtools.ksp"</span>, version.ref = <span class="str">"ksp"</span> }
+
+[bundles]
+compose = [<span class="str">"androidx-compose-ui"</span>, <span class="str">"androidx-compose-material3"</span>, <span class="str">"androidx-compose-tooling"</span>]</code></pre>
+
+<p>In your build files:</p>
+<pre><code>plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.bundles.compose)
+    ksp(libs.hilt.compiler)
+}</code></pre>
+
+<p>Type-safe — IDE autocomplete works; renaming a version in the TOML auto-refactors everywhere it's used.</p>
+
+<!-- =============== 11. BUILD TYPES VS FLAVORS VS VARIANTS =============== -->
+<h2 id="s11">11. Build types vs flavors vs variants — the holy trinity</h2>
+
+<table>
+  <thead><tr><th>Concept</th><th>What it is</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Build type</strong></td><td><em>How</em> to build it (signing, minification, debuggability)</td><td>debug, release, staging</td></tr>
+    <tr><td><strong>Product flavor</strong></td><td><em>What</em> to build (which features, which env)</td><td>free vs paid; qa vs prod; tablet vs phone</td></tr>
+    <tr><td><strong>Variant</strong></td><td>The cross-product: <code>flavor + buildType</code></td><td><code>qaDebug</code>, <code>qaRelease</code>, <code>prodDebug</code>, <code>prodRelease</code></td></tr>
+    <tr><td><strong>Flavor dimension</strong></td><td>An axis along which flavors group</td><td>"environment" (qa/prod), "tier" (free/paid) — 2 dimensions × 2 each = 4 flavors → 4 × 2 build types = 8 variants</td></tr>
+  </tbody>
+</table>
+
+<pre><code>android {
+    buildTypes {
+        debug   { applicationIdSuffix = <span class="str">".debug"</span>; isDebuggable = <span class="kw">true</span> }
+        release { isMinifyEnabled = <span class="kw">true</span> }
+    }
+
+    flavorDimensions += listOf(<span class="str">"environment"</span>, <span class="str">"tier"</span>)
+    productFlavors {
+        create(<span class="str">"qa"</span>)   { dimension = <span class="str">"environment"</span>; applicationIdSuffix = <span class="str">".qa"</span> }
+        create(<span class="str">"prod"</span>) { dimension = <span class="str">"environment"</span> }
+        create(<span class="str">"free"</span>) { dimension = <span class="str">"tier"</span>; applicationIdSuffix = <span class="str">".free"</span> }
+        create(<span class="str">"paid"</span>) { dimension = <span class="str">"tier"</span> }
+    }
+}
+<span class="com">// Variants generated: qaFreeDebug, qaFreeRelease, qaPaidDebug, qaPaidRelease,</span>
+<span class="com">//                     prodFreeDebug, prodFreeRelease, prodPaidDebug, prodPaidRelease</span></code></pre>
+
+<!-- =============== 12. SOURCE SETS =============== -->
+<h2 id="s12">12. Source sets — what <code>qaImpl</code>, <code>prodImpl</code>, <code>debug</code> folders actually do</h2>
+
+<p>For every variant, AGP defines a hierarchy of source sets that get merged. <strong>Files in flavor- or build-type-specific folders override or supplement <code>main</code> for that variant.</strong></p>
+
+<div class="diagram">project/app/src/
+├── main/                 ← always included
+│   ├── java/...           (or kotlin/)
+│   ├── res/...
+│   └── AndroidManifest.xml
+│
+├── debug/                ← included in *Debug* variants only
+│   ├── java/.../FakeApi.kt   (overrides main/.../FakeApi.kt if present)
+│   └── res/values/strings.xml (merged with main; debug wins on conflict)
+│
+├── release/              ← included in *Release* variants only
+│
+├── qa/                   ← included in qa* variants only
+│   └── java/.../Config.kt    (qa BASE_URL etc)
+│
+├── prod/                 ← included in prod* variants only
+│
+├── qaDebug/              ← qa AND debug — most specific
+│
+└── prodRelease/          ← prod AND release</div>
+
+<h3>What gets merged at compile time, in order</h3>
+<ol>
+  <li><code>main</code></li>
+  <li>buildType folder (e.g., <code>debug</code> or <code>release</code>)</li>
+  <li>each flavor's folder (e.g., <code>qa</code>)</li>
+  <li>flavor + buildType combination (e.g., <code>qaDebug</code>)</li>
+  <li>multi-flavor combinations</li>
+</ol>
+
+<p>Higher specificity wins for <strong>code</strong> (the variant-specific class replaces <code>main</code>'s) and is <strong>merged</strong> for <strong>resources/manifest</strong>.</p>
+
+<h3>What "qaImpl" really means</h3>
+<p>The naming convention "qaImpl" you might see in dependencies refers to the <strong>configuration</strong>, not a folder:</p>
+
+<pre><code>dependencies {
+    implementation(libs.androidx.core.ktx)              <span class="com">// always included</span>
+    qaImplementation(libs.flipper)                      <span class="com">// only in qa* variants</span>
+    debugImplementation(libs.leakcanary)                <span class="com">// only in *Debug variants</span>
+    qaDebugImplementation(libs.chuckerteam.chucker)     <span class="com">// only in qaDebug variant</span>
+}</code></pre>
+
+<p>For each variant, AGP creates configurations like <code>qaImplementation</code>, <code>debugImplementation</code>, <code>qaDebugImplementation</code>, etc. Adding a dependency to <code>debugImplementation</code> means it's only on the classpath for debug variants. <em>This is how LeakCanary stays out of your release APK.</em></p>
+
+<!-- =============== 13. DEPENDENCY CONFIGURATIONS =============== -->
+<h2 id="s13">13. Dependency configurations — <code>implementation</code> vs <code>api</code> vs <code>compileOnly</code> vs more</h2>
+
+<table>
+  <thead><tr><th>Configuration</th><th>Meaning</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td><code>implementation</code></td><td>Default. Used at compile + runtime. Hidden from consumers.</td><td>Most things</td></tr>
+    <tr><td><code>api</code></td><td>Like implementation but EXPOSED — types are part of your public API; consumers see them transitively.</td><td>Common-types module exposing models</td></tr>
+    <tr><td><code>compileOnly</code></td><td>Available at compile, NOT at runtime. Caller must provide at runtime.</td><td>Annotation libs (jakarta.annotation), ServiceLoader interfaces</td></tr>
+    <tr><td><code>runtimeOnly</code></td><td>NOT at compile, only at runtime.</td><td>JDBC drivers; logging implementations</td></tr>
+    <tr><td><code>ksp</code> / <code>kapt</code></td><td>Annotation processors (compile-time only)</td><td>Hilt, Room, Moshi-codegen</td></tr>
+    <tr><td><code>testImplementation</code></td><td>Only for unit tests (src/test/)</td><td>JUnit, MockK, Turbine</td></tr>
+    <tr><td><code>androidTestImplementation</code></td><td>Only for instrumented tests (src/androidTest/)</td><td>Espresso, Compose Test</td></tr>
+    <tr><td><code>debugImplementation</code></td><td>Only in *Debug variants</td><td>LeakCanary, Chucker</td></tr>
+    <tr><td><code>releaseRuntimeOnly</code></td><td>Only in *Release variants, runtime only</td><td>Logging redactor</td></tr>
+  </tbody>
+</table>
+
+<h3>The api/implementation split — why it matters for build speed</h3>
+<pre><code><span class="com">// In :core:network</span>
+dependencies {
+    api(libs.retrofit)                  <span class="com">// consumers can import retrofit.* directly</span>
+    implementation(libs.okhttp)         <span class="com">// consumers cannot see okhttp; must declare separately</span>
+}
+
+<span class="com">// In :feature:home (depends on :core:network)</span>
+dependencies {
+    implementation(project(<span class="str">":core:network"</span>))
+    <span class="com">// can use Retrofit (api), cannot use OkHttp (impl)</span>
+}</code></pre>
+
+<p>Why prefer <code>implementation</code>? Changes to OkHttp recompile only the network module, not every consumer module. Switching from <code>api</code> to <code>implementation</code> on a heavily-used module can cut incremental build time by 20-40%.</p>
+
+<h3>Conflict resolution — when two deps want different versions</h3>
+<p>By default, Gradle picks the highest version. Override with:</p>
+<pre><code>configurations.all {
+    resolutionStrategy {
+        force(<span class="str">"com.squareup.okhttp3:okhttp:4.12.0"</span>)         <span class="com">// pin a version</span>
+        eachDependency {
+            <span class="kw">if</span> (requested.group == <span class="str">"com.squareup.okhttp3"</span>) {
+                useVersion(<span class="str">"4.12.0"</span>)
+            }
+        }
+    }
+}</code></pre>
+
+<p>For diagnosing version conflicts: <code>./gradlew :app:dependencies --configuration releaseRuntimeClasspath</code></p>
+
+<!-- =============== 14. CUSTOM TASKS =============== -->
+<h2 id="s14">14. Custom tasks — writing your own</h2>
+
+<h3>Simple ad-hoc task</h3>
+<pre><code>tasks.register(<span class="str">"hello"</span>) {
+    group = <span class="str">"misc"</span>                        <span class="com">// shows up under "misc" in ./gradlew tasks</span>
+    description = <span class="str">"Prints hello"</span>
+    doLast {
+        println(<span class="str">"Hello from Gradle"</span>)
+    }
+}
+<span class="com">// Run: ./gradlew hello</span></code></pre>
+
+<h3>Typed task (custom Task class)</h3>
+<pre><code><span class="kw">abstract class</span> GenerateBuildInfoTask : DefaultTask() {
+    <span class="anno">@get:Input</span>
+    <span class="kw">abstract val</span> versionName: Property&lt;String&gt;
+
+    <span class="anno">@get:OutputFile</span>
+    <span class="kw">abstract val</span> outputFile: RegularFileProperty
+
+    <span class="anno">@TaskAction</span>
+    <span class="kw">fun</span> generate() {
+        <span class="kw">val</span> file = outputFile.get().asFile
+        file.writeText(<span class="str">"object BuildInfo { const val VERSION = \"${versionName.get()}\" }"</span>)
+    }
+}
+
+tasks.register&lt;GenerateBuildInfoTask&gt;(<span class="str">"genBuildInfo"</span>) {
+    versionName.set(<span class="str">"1.4.2"</span>)
+    outputFile.set(layout.buildDirectory.file(<span class="str">"generated/BuildInfo.kt"</span>))
+}
+
+<span class="com">// Wire as a source for compilation</span>
+android {
+    sourceSets[<span class="str">"main"</span>].kotlin.srcDir(layout.buildDirectory.dir(<span class="str">"generated"</span>))
+}</code></pre>
+
+<h3>Typed tasks unlock incremental builds</h3>
+<ul>
+  <li><code>@Input</code> — properties whose value affects output. Gradle hashes them.</li>
+  <li><code>@OutputFile</code> / <code>@OutputDirectory</code> — Gradle tracks for up-to-date check.</li>
+  <li><code>@InputFiles</code> — file inputs.</li>
+  <li><code>@TaskAction</code> — the work to do.</li>
+  <li>If inputs + outputs unchanged → task SKIPPED. Cacheable across machines if marked <code>@CacheableTask</code>.</li>
+</ul>
+
+<h3>Common Gradle DSL keywords</h3>
+<table>
+  <thead><tr><th>Keyword</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>tasks.register("name")</code></td><td>Lazily register a task — body deferred to needed</td></tr>
+    <tr><td><code>tasks.create("name")</code></td><td>Eagerly create — runs in configuration phase. Avoid.</td></tr>
+    <tr><td><code>tasks.named("name")</code></td><td>Get a registered task lazily</td></tr>
+    <tr><td><code>doFirst { }</code></td><td>Add behavior at the start of execution</td></tr>
+    <tr><td><code>doLast { }</code></td><td>Add behavior at the end</td></tr>
+    <tr><td><code>dependsOn(...)</code></td><td>Explicit task dependency</td></tr>
+    <tr><td><code>finalizedBy(...)</code></td><td>Always run X after Y, even if Y fails</td></tr>
+    <tr><td><code>mustRunAfter(...)</code></td><td>If both run, X must come after Y (no implicit ordering)</td></tr>
+    <tr><td><code>onlyIf { }</code></td><td>Skip task unless condition true</td></tr>
+    <tr><td><code>project.exec { }</code></td><td>Run an external process (avoid in config phase!)</td></tr>
+    <tr><td><code>providers.exec { }</code></td><td>Configuration-cache-friendly version</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 15. PLUGINS & BUILDLOGIC =============== -->
+<h2 id="s15">15. Plugins, buildSrc, convention plugins, included builds</h2>
+
+<p>You apply plugins — but how do you write your own to share logic across modules? Three options, evolving in sophistication:</p>
+
+<h3>1. Inline ext blocks (legacy, painful)</h3>
+<pre><code><span class="com">// Old way: copy-paste android{} block into 10 modules</span></code></pre>
+
+<h3>2. <code>buildSrc/</code> — Gradle's special folder</h3>
+<p>Anything in <code>buildSrc/</code> is compiled once and made available to all build scripts. Place shared Kotlin code there, then call from any module.</p>
+<pre><code>buildSrc/
+├── build.gradle.kts
+└── src/main/kotlin/
+    └── Versions.kt
+        object Versions { const val kotlin = "2.0.0"; ... }</code></pre>
+<p>Downside: changing buildSrc invalidates ALL build script caches → slow CI.</p>
+
+<h3>3. ★ Convention plugins (the modern way)</h3>
+<p>Write small plugin classes in a separate Gradle build (<code>build-logic/</code>) that you <code>includeBuild</code>. Each plugin applies a "convention" — a standard configuration for a category of module (Android lib, Compose feature, JVM lib). Modules just apply the convention plugin and get everything.</p>
+
+<pre><code><span class="com">// build-logic/convention/src/main/kotlin/AndroidLibraryConventionPlugin.kt</span>
+<span class="kw">class</span> AndroidLibraryConventionPlugin : Plugin&lt;Project&gt; {
+    <span class="kw">override fun</span> apply(target: Project) = <span class="kw">with</span>(target) {
+        plugins.apply(<span class="str">"com.android.library"</span>)
+        plugins.apply(<span class="str">"org.jetbrains.kotlin.android"</span>)
+
+        extensions.configure&lt;LibraryExtension&gt; {
+            compileSdk = <span class="num">34</span>
+            defaultConfig.minSdk = <span class="num">24</span>
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+
+        dependencies {
+            add(<span class="str">"implementation"</span>, <span class="str">"androidx.core:core-ktx:1.13.1"</span>)
+        }
+    }
+}
+
+<span class="com">// settings.gradle.kts of build-logic — register the plugin id</span>
+gradlePlugin {
+    plugins {
+        register(<span class="str">"androidLibrary"</span>) {
+            id = <span class="str">"myapp.android.library"</span>
+            implementationClass = <span class="str">"AndroidLibraryConventionPlugin"</span>
+        }
+    }
+}
+
+<span class="com">// In any module: just one line!</span>
+plugins {
+    id(<span class="str">"myapp.android.library"</span>)
+}</code></pre>
+
+<p>This is how Now in Android (Google's reference app) and most large enterprise codebases scale build logic. Updating Kotlin version = change one file in <code>build-logic/</code>; all 50 modules pick it up.</p>
+
+<h3>4. Included builds (composite builds)</h3>
+<p><code>includeBuild("path/to/other-project")</code> in <code>settings.gradle.kts</code> — treats another Gradle build as a dependency. Useful for working on a library + app together without publishing.</p>
+
+<!-- =============== 16. WRAPPER, DAEMON, VERSION MGMT =============== -->
+<h2 id="s16">16. Gradle wrapper, daemon, and version management</h2>
+
+<h3>The wrapper — why every project ships <code>./gradlew</code></h3>
+<p>The <code>gradle/wrapper/gradle-wrapper.properties</code> file pins the exact Gradle version. <code>./gradlew</code> downloads that version on first run. Result: every developer + CI runs the same Gradle. Don't edit; let Gradle update via <code>./gradlew wrapper --gradle-version 8.7</code>.</p>
+
+<pre><code><span class="com"># gradle/wrapper/gradle-wrapper.properties</span>
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+networkTimeout=10000
+distributionSha256Sum=...</code></pre>
+
+<h3>The Gradle daemon — why builds are fast (after the first)</h3>
+<p>Gradle starts a long-lived JVM daemon process that stays warm between builds. Subsequent builds reuse it — JIT-compiled, classes loaded, build script compiled. Configuration cache + daemon = sub-second incremental builds for many projects.</p>
+
+<table>
+  <thead><tr><th>Setting</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>org.gradle.daemon=true</code> (default)</td><td>Keep daemon alive across builds</td></tr>
+    <tr><td><code>org.gradle.parallel=true</code></td><td>Run independent tasks in parallel across modules</td></tr>
+    <tr><td><code>org.gradle.caching=true</code></td><td>Enable build cache (re-use task outputs)</td></tr>
+    <tr><td><code>org.gradle.configuration-cache=true</code></td><td>Skip configuration phase if scripts unchanged</td></tr>
+    <tr><td><code>org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g</code></td><td>Heap + metaspace for the daemon</td></tr>
+    <tr><td><code>org.gradle.workers.max=8</code></td><td>Cap parallel workers (default: cpuCount)</td></tr>
+  </tbody>
+</table>
+
+<p>Set in <code>gradle.properties</code>.</p>
+
+<h3>Gradle version vs AGP version vs Kotlin version</h3>
+<table>
+  <thead><tr><th>Component</th><th>Where pinned</th></tr></thead>
+  <tbody>
+    <tr><td>Gradle</td><td>gradle/wrapper/gradle-wrapper.properties (distributionUrl)</td></tr>
+    <tr><td>Android Gradle Plugin (AGP)</td><td>plugins block in :app/build.gradle.kts (or version catalog)</td></tr>
+    <tr><td>Kotlin</td><td>plugins block (Kotlin Android plugin)</td></tr>
+    <tr><td>Compose Compiler</td><td>composeOptions.kotlinCompilerExtensionVersion (must match Kotlin version compatibility)</td></tr>
+    <tr><td>KSP</td><td>plugin id (must match Kotlin version, e.g., 2.0.0-1.0.21)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>The compatibility matrix is real.</strong> Wrong AGP for Gradle = build fails immediately. Wrong Kotlin for KSP = obscure error. Always check the AGP release notes before bumping.</p>
+
+<!-- =============== 17. CONFIG CACHE + BUILD CACHE =============== -->
+<h2 id="s17">17. ★ Configuration cache, build cache, parallelism — the perf trio</h2>
+
+<h3>Configuration cache (Gradle 7.5+)</h3>
+<p>Serializes the configured task graph to disk after the first run. Subsequent builds load it directly — skipping the entire configuration phase. Result: 10s configuration → 100ms.</p>
+
+<p>Enable: <code>org.gradle.configuration-cache=true</code>.</p>
+
+<p>Restrictions for compatibility:</p>
+<ul>
+  <li>Tasks must not capture <code>Project</code> at execution time — use <code>providers</code> and <code>layout</code></li>
+  <li>No <code>System.getenv()</code> at config time — use <code>providers.environmentVariable("X")</code></li>
+  <li>External processes during config: use <code>providers.exec { }</code> not <code>project.exec { }</code></li>
+</ul>
+
+<p>Run <code>./gradlew &lt;task&gt; --configuration-cache</code> to see incompatibilities. Most third-party plugins are now compatible.</p>
+
+<h3>Build cache</h3>
+<p>Stores task <em>outputs</em> keyed by input hashes. Two layers:</p>
+<ul>
+  <li><strong>Local</strong> — <code>~/.gradle/caches/build-cache-1/</code>. Across projects on your machine.</li>
+  <li><strong>Remote</strong> — Gradle Enterprise / DIY HTTP cache. Across machines (CI shares with devs).</li>
+</ul>
+
+<p>For task A, Gradle hashes (inputs + classpath + JVM args + Gradle version + plugin versions). If a cache hit, downloads outputs and skips execution. Massive win on CI.</p>
+
+<h3>Parallelism</h3>
+<p>Two levels:</p>
+<ul>
+  <li><strong>Project parallelism</strong> (<code>org.gradle.parallel=true</code>): run tasks of independent modules in parallel</li>
+  <li><strong>Worker API</strong>: parallel work within a single task (e.g., dexing in parallel chunks; AGP uses this internally)</li>
+</ul>
+
+<h3>How they combine</h3>
+<div class="diagram">First build:    config (slow) → execution (slow)         = ~30 s
+Cached config:  cached config (fast) → execution (slow)   = ~15 s
++ build cache:  cached config (fast) → cached exec (fast) = ~3 s
++ parallel:     even faster on multi-module                = ~1 s</div>
+
+<!-- =============== 18. KSP VS KAPT =============== -->
+<h2 id="s18">18. KSP vs kapt — annotation processing</h2>
+
+<table>
+  <thead><tr><th></th><th>KSP</th><th>kapt</th></tr></thead>
+  <tbody>
+    <tr><td>How it works</td><td>Native Kotlin Symbol Processing (Kotlin compiler API)</td><td>Generates Java stubs from Kotlin, runs Java annotation processors</td></tr>
+    <tr><td>Speed</td><td>~2-3× faster than kapt</td><td>Slow (extra stub-generation step)</td></tr>
+    <tr><td>Incremental support</td><td>Excellent</td><td>OK</td></tr>
+    <tr><td>Library support</td><td>Hilt, Room, Moshi-codegen, Glide (and more) — most major libs</td><td>Anything not yet on KSP</td></tr>
+    <tr><td>2026 default</td><td>Yes</td><td>Only if a library hasn't migrated</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Switch from kapt to ksp:</span>
+plugins {
+    id(<span class="str">"com.google.devtools.ksp"</span>) <span class="kw">version</span> <span class="str">"2.0.0-1.0.21"</span>
+    <span class="com">// kotlin("kapt") — remove</span>
+}
+dependencies {
+    ksp(libs.hilt.compiler)         <span class="com">// was kapt(libs.hilt.compiler)</span>
+    ksp(libs.room.compiler)
+}</code></pre>
+
+<!-- =============== 19. AGP =============== -->
+<h2 id="s19">19. AGP (Android Gradle Plugin) — what it adds</h2>
+
+<p>AGP teaches Gradle how to build Android. Without it, Gradle doesn't know what an APK is.</p>
+
+<table>
+  <thead><tr><th>What AGP adds</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr><td>The <code>android { }</code> extension</td><td>Where you configure compileSdk, build types, flavors</td></tr>
+    <tr><td>Android-aware tasks</td><td>assembleDebug, bundleRelease, lintDebug, mergeReleaseResources, processReleaseResources, dexBuilder, etc.</td></tr>
+    <tr><td>Source set merging</td><td>main + variant-specific folders</td></tr>
+    <tr><td>R8 integration</td><td>Shrink/optimize/obfuscate at release</td></tr>
+    <tr><td>Manifest merger</td><td>Combines library manifests with your app's</td></tr>
+    <tr><td>Resource processing (AAPT2)</td><td>Compiles XML resources to binary</td></tr>
+    <tr><td>D8 dexing</td><td>Converts JVM bytecode → DEX</td></tr>
+    <tr><td>Variant API</td><td>Programmatic access to build variants — for custom build logic</td></tr>
+  </tbody>
+</table>
+
+<h3>The Variant API — power users only</h3>
+<pre><code>androidComponents {
+    onVariants { variant -&gt;
+        <span class="com">// Programmatically modify a variant's setup</span>
+        <span class="kw">if</span> (variant.name == <span class="str">"prodRelease"</span>) {
+            variant.outputs.forEach {
+                <span class="kw">if</span> (it <span class="kw">is</span> VariantOutputImpl) {
+                    it.outputFileName.set(<span class="str">"my-app-${variant.versionName.get()}.apk"</span>)
+                }
+            }
+        }
+    }
+}</code></pre>
+
+<!-- =============== 20. ANDROID BUILD FLOW =============== -->
+<h2 id="s20">20. What actually happens when you run <code>./gradlew assembleRelease</code></h2>
+
+<div class="diagram">1. INITIALIZATION
+   - Read settings.gradle.kts
+   - Discover all included projects
+   - Create Project instances
+
+2. CONFIGURATION (or load from configuration cache)
+   - Run every build.gradle.kts
+   - Apply plugins (AGP, Kotlin, Hilt, KSP, …)
+   - Build the task DAG
+
+3. EXECUTION — for each task in topological order:
+   ┌─ preBuild
+   ├─ generateReleaseSources           (BuildConfig, R, Hilt-generated, KSP-generated)
+   ├─ compileReleaseKotlin             (kotlinc → JVM bytecode in build/intermediates)
+   ├─ kspReleaseKotlin                 (annotation processors run)
+   ├─ compileReleaseJavaWithJavac      (any Java sources)
+   ├─ mergeReleaseResources            (res/ folders merged across variant)
+   ├─ processReleaseResources          (AAPT2 — XML → binary)
+   ├─ minifyReleaseWithR8              (shrink + optimize + obfuscate JVM bytecode)
+   ├─ dexBuilderRelease (D8)           (JVM bytecode → DEX)
+   ├─ mergeDexRelease                  (combine into classes.dex, classes2.dex, …)
+   ├─ packageRelease                   (zip everything into APK structure)
+   ├─ apkSignerRelease                 (sign with release keystore)
+   └─ assembleRelease                  (final outputs in build/outputs/apk/release/)</div>
+
+<p>For an AAB (App Bundle), replace the last steps with <code>bundleRelease</code> which produces an .aab file Play uses to generate per-device split APKs.</p>
+
+<!-- =============== 21. SIGNING =============== -->
+<h2 id="s21">21. Signing config &amp; release variants</h2>
+
+<pre><code>android {
+    signingConfigs {
+        create(<span class="str">"release"</span>) {
+            <span class="com">// Don't put real secrets in the build file!</span>
+            storeFile     = file(System.getenv(<span class="str">"KEYSTORE_PATH"</span>) ?: <span class="str">"missing.keystore"</span>)
+            storePassword = System.getenv(<span class="str">"KEYSTORE_PWD"</span>)
+            keyAlias      = System.getenv(<span class="str">"KEY_ALIAS"</span>)
+            keyPassword   = System.getenv(<span class="str">"KEY_PWD"</span>)
+        }
+    }
+    buildTypes {
+        getByName(<span class="str">"release"</span>) {
+            signingConfig = signingConfigs.getByName(<span class="str">"release"</span>)
+        }
+    }
+}</code></pre>
+
+<p>Modern flow: <strong>Play App Signing</strong> — Google holds the actual signing key; you upload signed with your "upload key." Lower compromise blast radius. Mandatory for new apps on Play.</p>
+
+<!-- =============== 22. MULTI-MODULE =============== -->
+<h2 id="s22">22. Multi-module patterns</h2>
+
+<h3>Recommended structure</h3>
+<pre><code>:app                            <span class="com"># thin glue: NavHost, Application, theme</span>
+:build-logic                    <span class="com"># includeBuild, hosts convention plugins</span>
+:core
+  :core:common                  <span class="com"># utilities, KMP-ready</span>
+  :core:design-system           <span class="com"># Composables, theme</span>
+  :core:network                 <span class="com"># OkHttp, Retrofit, common interceptors</span>
+  :core:database                <span class="com"># Room DB, DAOs</span>
+  :core:domain                  <span class="com"># shared models, interfaces</span>
+  :core:test-utils              <span class="com"># shared fakes, test rules</span>
+:feature
+  :feature:home                 <span class="com"># HomeScreen + ViewModel + UseCases + Repo</span>
+  :feature:profile
+  :feature:checkout</code></pre>
+
+<h3>Dependency rules</h3>
+<ul>
+  <li><strong>:app</strong> depends on every feature module</li>
+  <li><strong>:feature:*</strong> depends on <strong>:core:*</strong> only — never on other features</li>
+  <li><strong>:core:*</strong> are leaves — no upward dependencies</li>
+  <li>Cross-feature navigation goes through a navigator interface in <code>:core:domain</code>, implemented in <code>:app</code></li>
+</ul>
+
+<h3>Type-safe project accessors (Gradle 7+)</h3>
+<pre><code><span class="com">// settings.gradle.kts</span>
+enableFeaturePreview(<span class="str">"TYPESAFE_PROJECT_ACCESSORS"</span>)
+
+<span class="com">// In any build.gradle.kts</span>
+dependencies {
+    implementation(projects.core.network)         <span class="com">// type-safe!</span>
+    implementation(projects.core.database)
+}
+<span class="com">// vs the old way: implementation(project(":core:network"))</span></code></pre>
+
+<!-- =============== 23. PERFORMANCE =============== -->
+<h2 id="s23">23. Build performance — the checklist</h2>
+
+<ol>
+  <li><strong>Use the daemon</strong> + parallel + caching + configuration cache. The default <code>gradle.properties</code> for any project:
+    <pre><code>org.gradle.daemon=true
+org.gradle.parallel=true
+org.gradle.caching=true
+org.gradle.configuration-cache=true
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g
+android.useAndroidX=true
+android.nonTransitiveRClass=true
+kotlin.incremental=true</code></pre>
+  </li>
+  <li><strong>Switch to KSP</strong> from kapt — 2-3× faster annotation processing</li>
+  <li><strong>Use <code>implementation</code> instead of <code>api</code></strong> — limits transitive recompilation</li>
+  <li><strong>Use convention plugins via <code>build-logic</code></strong> — avoids recompiling buildSrc on every change</li>
+  <li><strong>Avoid expensive work in configuration phase</strong> — no I/O, no exec, no git calls at top level</li>
+  <li><strong>Use lazy task registration</strong> (<code>tasks.register</code> over <code>tasks.create</code>)</li>
+  <li><strong>Profile with <code>--scan</code></strong> — <code>./gradlew assembleDebug --scan</code> uploads a build scan to Gradle Enterprise; tells you exactly what was slow</li>
+  <li><strong>Profile with <code>--profile</code></strong> — generates an HTML report locally</li>
+  <li><strong>Module size matters</strong> — sweet spot 10-30 modules; over-modularization slows configuration</li>
+  <li><strong>Enable remote build cache on CI</strong> — devs share results with CI; ~30-60% faster</li>
+</ol>
+
+<!-- =============== 24. COMMON PROBLEMS =============== -->
+<h2 id="s24">24. Common Gradle problems &amp; fixes</h2>
+
+<table>
+  <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>"Daemon disappeared unexpectedly"</td><td>Out of memory or killed by OS</td><td>Increase <code>org.gradle.jvmargs=-Xmx4g</code></td></tr>
+    <tr><td>"Could not resolve all artifacts"</td><td>Dependency repos misconfigured</td><td>Check repositories in settings.gradle.kts; ensure offline mode off</td></tr>
+    <tr><td>"Duplicate class found in modules"</td><td>Two libraries shipping the same classes</td><td>Add <code>configurations.all { exclude(group = "x", module = "y") }</code></td></tr>
+    <tr><td>"Plugin not found"</td><td>Missing repository in pluginManagement</td><td>Add gradlePluginPortal() to pluginManagement.repositories</td></tr>
+    <tr><td>"R8 stripped my class"</td><td>Reflection access without -keep rule</td><td>Add appropriate -keep rule in proguard-rules.pro</td></tr>
+    <tr><td>"Configuration cache problem: ..."</td><td>Plugin/code captures Project at execution time</td><td>Refactor to use providers/layout APIs; or disable for that task</td></tr>
+    <tr><td>"Gradle version not compatible with AGP"</td><td>Wrong wrapper version for your AGP</td><td>Bump wrapper: <code>./gradlew wrapper --gradle-version 8.7</code></td></tr>
+    <tr><td>"Dex limit exceeded (65536)"</td><td>Too many methods for single DEX</td><td>Enable multidex or use R8 minification</td></tr>
+    <tr><td>"OutOfMemoryError: Metaspace"</td><td>Too many classes loaded in build process</td><td>Increase <code>-XX:MaxMetaspaceSize=1g</code></td></tr>
+    <tr><td>"Task ':compileKotlin' is not up-to-date because input has changed"</td><td>Sometimes spurious — caches got confused</td><td><code>./gradlew clean</code>; if recurring, file an issue</td></tr>
+    <tr><td>Slow first build after gradle.properties change</td><td>Daemon picks up new JVM args = restart</td><td>Expected; subsequent builds are fast</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 25. COMMON MISTAKES =============== -->
+<h2 id="s25">25. Common mistakes &amp; anti-patterns</h2>
+
+<div class="two-col">
+  <div class="col-card bad"><strong>Don't</strong>
+    <ul>
+      <li>Hardcode versions in module build files (use Version Catalog)</li>
+      <li>Use <code>api</code> for everything (kills incremental builds)</li>
+      <li>Run <code>System.getenv()</code> at config time (breaks config cache)</li>
+      <li>Read files in build script top-level (also breaks config cache)</li>
+      <li>Use <code>tasks.create</code> instead of <code>tasks.register</code></li>
+      <li>Put secrets in build files (use env vars or signing config files)</li>
+      <li>Modify task graph in afterEvaluate {} unless absolutely needed</li>
+      <li>Mix Groovy and Kotlin DSL in the same project (pick one)</li>
+      <li>Use <code>compile</code> configuration (deprecated long ago)</li>
+      <li>Inflate buildSrc with logic that should be a plugin</li>
+      <li>Forget to commit <code>gradle/</code> + wrapper jar (others can't build)</li>
+      <li>Use <code>android.disableAutomaticComponentCreation = true</code> blindly</li>
+    </ul>
+  </div>
+  <div class="col-card good"><strong>Do</strong>
+    <ul>
+      <li>Use Version Catalog for all versions</li>
+      <li>Prefer <code>implementation</code> over <code>api</code></li>
+      <li>Use <code>tasks.register</code> for laziness</li>
+      <li>Use convention plugins in <code>build-logic/</code> for shared config</li>
+      <li>Enable configuration cache + build cache + parallel</li>
+      <li>Run <code>--scan</code> when builds feel slow</li>
+      <li>Use type-safe project accessors (<code>projects.core.network</code>)</li>
+      <li>Switch to KSP from kapt where possible</li>
+      <li>Use <code>libs.versions.toml</code> bundles for grouped deps (<code>libs.bundles.compose</code>)</li>
+      <li>Pin Gradle wrapper version in git</li>
+      <li>Profile periodically — build times grow silently</li>
+      <li>Read AGP release notes before bumping versions</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 26. INTERVIEW Q&A =============== -->
+<h2 id="s26">26. Interview Q&amp;A — FAANG-level</h2>
+
+<h3>Q: "Walk me through what happens when I run <code>./gradlew assembleRelease</code>."</h3>
+<p>Three phases. <strong>Initialization</strong>: read settings.gradle.kts, discover modules, create Project instances. <strong>Configuration</strong>: run every module's build.gradle.kts, apply plugins, build task DAG (or load from configuration cache). <strong>Execution</strong>: walk the DAG topologically, run tasks (preBuild → kotlin compile → KSP processing → R8 → D8 dex → resource merge → AAPT2 → package → sign → assemble), skipping anything up-to-date or in build cache. Output: APK in build/outputs/apk/release.</p>
+
+<h3>Q: "Difference between configuration phase and execution phase — and why it matters."</h3>
+<p>Configuration runs every script even for unrelated tasks. Execution runs only what's needed. Anything heavy in configuration costs every single build — file I/O, network calls, git commands. Use <code>tasks.register</code> (lazy) over <code>tasks.create</code> (eager) so task body runs in execution. Configuration cache makes this gap less painful by skipping configuration entirely on subsequent builds.</p>
+
+<h3>Q: "How does Gradle know if a task can be skipped?"</h3>
+<p>Up-to-date checks via input/output tracking. Each typed task declares <code>@Input</code>, <code>@InputFiles</code>, <code>@OutputFile</code>, <code>@OutputDirectory</code>. Gradle hashes them; if hash matches the previous run, task is SKIPPED. With <code>@CacheableTask</code>, also stored in build cache for cross-machine sharing.</p>
+
+<h3>Q: "How does build cache differ from configuration cache?"</h3>
+<p>Configuration cache stores the configured task graph (skips configuration phase). Build cache stores task <em>outputs</em> (skips execution of cached tasks). Both can apply to the same build: configuration cache hits → fast configuration; build cache hits → skipped task execution.</p>
+
+<h3>Q: "Why prefer <code>implementation</code> over <code>api</code>?"</h3>
+<p><code>implementation</code> hides the dep from consumers — they can't import its types. Changing the dep doesn't recompile downstream modules. <code>api</code> exposes the dep — consumers see and can use it, but every change there recompiles everyone. Switching from <code>api</code> to <code>implementation</code> on a heavily-used internal module can cut build time 20-40%.</p>
+
+<h3>Q: "Build types vs flavors vs variants?"</h3>
+<p>Build types = HOW (debug/release/staging — minification, signing, debuggability). Flavors = WHAT (qa/prod, free/paid — features, environments). Variants = the cross-product (qaDebug, prodRelease, etc.). Each variant has its own merged source set and configurations like <code>qaDebugImplementation</code>.</p>
+
+<h3>Q: "What does <code>debugImplementation(libs.leakcanary)</code> actually do?"</h3>
+<p>AGP creates per-variant configurations. <code>debugImplementation</code> means the dependency is on the classpath only for *Debug variants — never in release builds. That's how LeakCanary stays out of production APKs.</p>
+
+<h3>Q: "Where is the Groovy/Kotlin from build.gradle when the user has the app?"</h3>
+<p>Nowhere. Build scripts are build-time-only — they run on developer/CI machines. The output APK contains compiled DEX bytecode (your Kotlin app code), resources, manifest, and signing — no Gradle, no Groovy. ART executes the DEX bytecode at runtime.</p>
+
+<h3>Q: "What's a convention plugin and why use one?"</h3>
+<p>A small Gradle plugin that bundles standard module configuration. You write it once in a <code>build-logic/</code> included build, then apply it to any module via <code>plugins { id("myapp.android.feature") }</code>. Updating Kotlin version or compileSdk = change one file, all 50 modules pick it up. The modern replacement for buildSrc + ext blocks.</p>
+
+<h3>Q: "Why is the Gradle daemon important for build speed?"</h3>
+<p>Gradle is a JVM tool. Cold-start JVM overhead is several hundred ms. The daemon is a long-lived JVM process that stays warm: classes loaded, JIT warm, build script compiled. Subsequent builds reuse it. Combined with configuration cache + build cache, incremental builds drop from 10+ s to sub-second.</p>
+
+<h3>Q: "How does Gradle resolve dependency version conflicts?"</h3>
+<p>Default: pick the highest version among all transitives. Override via <code>resolutionStrategy.force(...)</code> or <code>resolutionStrategy.eachDependency { useVersion(...) }</code>. Inspect with <code>./gradlew :app:dependencies --configuration releaseRuntimeClasspath</code> — shows the full tree with which version won and why.</p>
+
+<h3>Q: "What's KSP and why use it over kapt?"</h3>
+<p>KSP = Kotlin Symbol Processing. Native Kotlin compiler API for annotation processing. kapt generates Java stubs from Kotlin then runs Java APs — slow extra step. KSP processes Kotlin directly. ~2-3× faster, more accurate type info, better incremental support. Hilt, Room, Moshi-codegen all support KSP. Switch every project that can.</p>
+
+<h3>Q: "How do you debug a slow Gradle build?"</h3>
+<p><code>./gradlew &lt;task&gt; --scan</code> uploads a build scan to Gradle Enterprise — shows configuration vs execution time, slow tasks, dependency resolution time, etc. Locally: <code>--profile</code> generates an HTML report. Enable <code>org.gradle.configuration-cache=true</code> and check whether config phase is the bottleneck.</p>
+
+<h3>Q: "What is the AGP and what does it add to Gradle?"</h3>
+<p>Android Gradle Plugin teaches Gradle how to build Android. Adds: the <code>android { }</code> extension, all the Android-aware tasks (assembleRelease, mergeResources, R8, dexBuilder, etc.), source set merging logic for variants, manifest merger, AAPT2 integration, R8 integration. Without AGP, Gradle has no idea what an APK is.</p>
+
+<h3>Q: "What's the difference between buildSrc and an included build for build-logic?"</h3>
+<p><code>buildSrc</code> is a special Gradle folder that's compiled and added to all build script classpaths. Simple, but: changing anything in <code>buildSrc</code> invalidates all build script caches → painful on CI. <code>includeBuild("build-logic")</code> treats build-logic as a separate Gradle build with its own classpath; only changes to the specific plugin you're touching trigger recompilation. Modern recommendation: <code>build-logic</code> with included build.</p>
+
+<!-- =============== 27. RECALL CARD =============== -->
+<h2 id="s27">27. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The mental model</h3>
+  <p>Gradle = task DAG executor. Three phases: Init → Configuration → Execution. Build scripts are build-time only — the APK contains compiled DEX, not Groovy/Kotlin source. Configuration phase is expensive; configuration cache skips it.</p>
+
+  <h3>Build types vs flavors vs variants</h3>
+  <ul>
+    <li>Build type = HOW (debug/release: minify, sign, debuggable)</li>
+    <li>Flavor = WHAT (qa/prod, free/paid)</li>
+    <li>Variant = flavor × buildType (qaDebug, prodRelease)</li>
+    <li>Source sets merged: main + buildType + flavor + variant</li>
+    <li>Per-variant configs: <code>debugImplementation</code>, <code>qaImplementation</code>, etc.</li>
+  </ul>
+
+  <h3>Dependency configurations</h3>
+  <ul>
+    <li><code>implementation</code> — default; hidden from consumers</li>
+    <li><code>api</code> — exposed; consumers see types</li>
+    <li><code>compileOnly</code> — compile only, not packaged</li>
+    <li><code>runtimeOnly</code> — packaged, not at compile</li>
+    <li><code>ksp</code> / <code>kapt</code> — annotation processors</li>
+    <li><code>testImplementation</code> / <code>androidTestImplementation</code> — test scopes</li>
+  </ul>
+
+  <h3>Performance trio</h3>
+  <ul>
+    <li>Daemon (<code>org.gradle.daemon=true</code>)</li>
+    <li>Parallel (<code>org.gradle.parallel=true</code>)</li>
+    <li>Build cache (<code>org.gradle.caching=true</code>)</li>
+    <li>Configuration cache (<code>org.gradle.configuration-cache=true</code>)</li>
+    <li>KSP over kapt</li>
+    <li>implementation over api</li>
+    <li>Convention plugins via build-logic included build</li>
+    <li>Version Catalog for shared versions</li>
+  </ul>
+
+  <h3>What ships in the APK</h3>
+  <ul>
+    <li>classes.dex (compiled Kotlin/Java)</li>
+    <li>AndroidManifest.xml (binary)</li>
+    <li>resources.arsc + res/</li>
+    <li>assets/</li>
+    <li>lib/&lt;abi&gt;/*.so</li>
+    <li>META-INF/ (signing)</li>
+    <li>baseline-prof.txt (optional)</li>
+    <li>NOT: Gradle, Groovy, build scripts</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li><code>tasks.create</code> (eager) — use <code>tasks.register</code></li>
+    <li>I/O / git / env in config phase top-level</li>
+    <li>Hardcoded versions per module</li>
+    <li><code>api</code> when <code>implementation</code> works</li>
+    <li>kapt when KSP works</li>
+    <li>Mixing Groovy + Kotlin DSL</li>
+    <li>Secrets in build files</li>
+    <li>Bloated buildSrc (use convention plugins)</li>
+  </ul>
+</div>
+
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read top to bottom for understanding · skim §6 (3 phases), §17 (perf trio), §26 (Q&amp;A), §27 (recall) before any build-system interview.
+    Pair with the rest of the cheat sheets in this repo.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'gradle-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
