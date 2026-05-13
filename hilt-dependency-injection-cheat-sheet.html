@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hilt + Dependency Injection Cheat Sheet — 2026</title>
+<meta name="description" content="A dense personal cheat sheet on Dependency Injection in Android with deep coverage of Hilt: why DI, manual vs framework, Hilt vs Koin vs Dagger, every Hilt component and scope with diagrams, @Provides vs @Binds, multibinding, qualifiers, ViewModel/WorkManager/Navigation integration, EntryPoints, what Hilt code-generates, testing patterns, KMP guidance, common mistakes, interview Q&A." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 280px minmax(0, 1fr);
+    gap: 28px; max-width: 1300px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+  .diagram {
+    background: var(--code-bg); color: #e6edf3;
+    padding: 14px 16px; border-radius: 10px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre; margin: 10px 0 14px;
+    border: 1px solid var(--code-border);
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.92rem; }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, .diagram, table, .callout, .two-col { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Hilt + DI · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Hilt + Dependency Injection</h1>
+  <div class="subtitle">Deep dive · Hilt internals · code generation · scopes · testing · KMP</div>
+  <div class="badges">
+    <span class="badge">2026 Edition</span>
+    <span class="badge">Original prose</span>
+    <span class="badge">Side-by-side bytecode</span>
+    <span class="badge">Interview-ready</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a dense reference on Dependency Injection in Android with depth on Hilt — including what its compiler actually generates. Same UI shell as the other cheat sheets in this repo. Original prose, standard idiomatic patterns, interview-flavored.
+</section>
+
+<!-- =============== 1. WHY DI =============== -->
+<h2 id="s1">1. Why DI — what problem it solves</h2>
+
+<p>Without DI, every class builds the things it depends on. Looks fine for one class. Becomes unmaintainable across an app:</p>
+
+<pre><code><span class="com">// Without DI</span>
+<span class="kw">class</span> UserViewModel {
+    <span class="kw">private val</span> retrofit = Retrofit.Builder()...build()
+    <span class="kw">private val</span> api = retrofit.create(UserApi::<span class="kw">class</span>.java)
+    <span class="kw">private val</span> db = Room.databaseBuilder(...).build()
+    <span class="kw">private val</span> repo = UserRepository(api, db.userDao())
+    <span class="kw">suspend fun</span> load() = repo.getUser()
+}
+<span class="com">// Problems:</span>
+<span class="com">// 1. Each ViewModel makes its own Retrofit/DB → wasted resources, duplicate config</span>
+<span class="com">// 2. Cannot swap real Repo for FakeRepo in tests</span>
+<span class="com">// 3. Changing Retrofit setup means editing every consumer</span>
+<span class="com">// 4. Hidden dependencies — class signature lies about what it really needs</span></code></pre>
+
+<p>DI flips the responsibility: classes <strong>declare</strong> what they need; somebody else <strong>provides</strong> it.</p>
+
+<pre><code><span class="com">// With DI</span>
+<span class="kw">class</span> UserViewModel(<span class="kw">private val</span> repo: UserRepository) : ViewModel() {
+    <span class="kw">suspend fun</span> load() = repo.getUser()
+}
+<span class="com">// Now: testable (pass a FakeRepository), reusable, clear contract.</span>
+<span class="com">// "Somebody else" = the DI framework — Hilt, Koin, or manual.</span></code></pre>
+
+<h3>What DI gives you</h3>
+<ul>
+  <li><strong>Testability</strong>: substitute fakes/mocks at test time</li>
+  <li><strong>Single source of truth</strong>: one Retrofit, one DB, shared everywhere</li>
+  <li><strong>Explicit contracts</strong>: constructor lists everything the class needs</li>
+  <li><strong>Decoupling</strong>: Repo doesn't know which DAO/API impl was injected</li>
+  <li><strong>Lifecycle management</strong>: framework knows when to clean up scope-bound objects</li>
+</ul>
+
+<!-- =============== 2. MANUAL VS FRAMEWORK =============== -->
+<h2 id="s2">2. Manual DI vs framework DI — when each fits</h2>
+
+<table>
+  <thead><tr><th></th><th>Manual DI</th><th>Framework DI</th></tr></thead>
+  <tbody>
+    <tr><td>Setup cost</td><td>Zero — just plain Kotlin classes</td><td>Some Gradle config + learning curve</td></tr>
+    <tr><td>Boilerplate at scale</td><td>Grows linearly with deps; painful</td><td>Constant — framework wires automatically</td></tr>
+    <tr><td>Scope lifecycle</td><td>You manage it</td><td>Framework gives you @Singleton, @ViewModelScoped, etc.</td></tr>
+    <tr><td>Compile-time validation</td><td>You spot bugs at runtime</td><td>Hilt/Dagger catch missing bindings at compile</td></tr>
+    <tr><td>Build-time impact</td><td>None</td><td>KSP/kapt processing time</td></tr>
+    <tr><td>Best for</td><td>Single-screen apps, small libraries</td><td>Real production apps</td></tr>
+  </tbody>
+</table>
+
+<h3>Manual DI example — a Service Locator container</h3>
+<pre><code><span class="kw">object</span> AppContainer {
+    <span class="kw">lateinit var</span> applicationContext: Context
+
+    <span class="kw">val</span> okHttpClient: OkHttpClient <span class="kw">by</span> lazy { OkHttpClient.Builder().build() }
+    <span class="kw">val</span> retrofit: Retrofit <span class="kw">by</span> lazy {
+        Retrofit.Builder().client(okHttpClient).baseUrl(<span class="str">"..."</span>).build()
+    }
+    <span class="kw">val</span> userApi: UserApi <span class="kw">by</span> lazy { retrofit.create(UserApi::<span class="kw">class</span>.java) }
+    <span class="kw">val</span> database: AppDatabase <span class="kw">by</span> lazy {
+        Room.databaseBuilder(applicationContext, AppDatabase::<span class="kw">class</span>.java, <span class="str">"app"</span>).build()
+    }
+    <span class="kw">val</span> userRepository: UserRepository <span class="kw">by</span> lazy {
+        UserRepositoryImpl(userApi, database.userDao())
+    }
+}
+
+<span class="com">// In Application</span>
+<span class="kw">override fun</span> onCreate() {
+    <span class="kw">super</span>.onCreate()
+    AppContainer.applicationContext = <span class="kw">this</span>
+}
+
+<span class="com">// In a ViewModel</span>
+<span class="kw">class</span> UserViewModel : ViewModel() {
+    <span class="kw">private val</span> repo = AppContainer.userRepository
+}</code></pre>
+
+<p>Works for small apps. At ~20+ classes you start fighting it (every consumer needs to know <code>AppContainer</code> exists; testing requires reassigning singletons; child scopes don't exist). Time to pick a framework.</p>
+
+<!-- =============== 3. HILT VS KOIN VS DAGGER =============== -->
+<h2 id="s3">3. Hilt vs Koin vs Dagger — when to pick which</h2>
+
+<table>
+  <thead><tr><th></th><th>Hilt</th><th>Koin</th><th>Dagger</th></tr></thead>
+  <tbody>
+    <tr><td>What it is</td><td>Dagger preconfigured for Android (built on top)</td><td>Pure Kotlin DSL, runtime resolution</td><td>The original — JSR-330 annotation processor</td></tr>
+    <tr><td>Validation</td><td>Compile-time (KSP/kapt)</td><td>Runtime (Koin Verify catches at test time)</td><td>Compile-time</td></tr>
+    <tr><td>Boilerplate</td><td>Low (Android sugar)</td><td>Lowest (DSL)</td><td>High (manual components)</td></tr>
+    <tr><td>Build cost</td><td>KSP/kapt processing time</td><td>None</td><td>kapt processing time</td></tr>
+    <tr><td>Runtime cost</td><td>Negligible (codegen)</td><td>Reflection on first init, then cached</td><td>Negligible (codegen)</td></tr>
+    <tr><td>Android scopes built-in</td><td>Yes (Singleton, ActivityRetained, ViewModel, Activity, Fragment, View, Service)</td><td>Manual (you define scope hierarchy)</td><td>Manual (you define every component)</td></tr>
+    <tr><td>KMP-friendly</td><td>No (Android-only)</td><td>Yes (multiplatform)</td><td>Limited</td></tr>
+    <tr><td>IDE support</td><td>Excellent (Android Studio specific)</td><td>OK</td><td>OK</td></tr>
+    <tr><td>Best for</td><td>Most Android apps</td><td>KMP shared modules, smaller apps</td><td>Multi-module non-Android JVM, custom DI</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>2026 default:</strong> Hilt for Android. Koin if you're sharing a module across Android + iOS via KMP. Manual DI for libraries you publish (don't force a framework on consumers).</div>
+
+<!-- =============== 4. HILT SETUP =============== -->
+<h2 id="s4">4. Hilt setup — minimal working app</h2>
+
+<h3>Step 1 — Gradle</h3>
+<pre><code><span class="com">// project/build.gradle.kts</span>
+plugins {
+    id(<span class="str">"com.google.dagger.hilt.android"</span>) <span class="kw">version</span> <span class="str">"2.51.1"</span> apply <span class="kw">false</span>
+    id(<span class="str">"com.google.devtools.ksp"</span>) <span class="kw">version</span> <span class="str">"2.0.0-1.0.21"</span> apply <span class="kw">false</span>
+}
+
+<span class="com">// app/build.gradle.kts</span>
+plugins {
+    id(<span class="str">"com.android.application"</span>)
+    kotlin(<span class="str">"android"</span>)
+    id(<span class="str">"com.google.dagger.hilt.android"</span>)
+    id(<span class="str">"com.google.devtools.ksp"</span>)
+}
+
+dependencies {
+    implementation(<span class="str">"com.google.dagger:hilt-android:2.51.1"</span>)
+    ksp(<span class="str">"com.google.dagger:hilt-android-compiler:2.51.1"</span>)
+    implementation(<span class="str">"androidx.hilt:hilt-navigation-compose:1.2.0"</span>)
+}</code></pre>
+
+<h3>Step 2 — Application class</h3>
+<pre><code><span class="anno">@HiltAndroidApp</span>
+<span class="kw">class</span> App : Application()</code></pre>
+<p>Set <code>android:name=".App"</code> in the manifest. Hilt's Gradle plugin actually rewrites it to a generated subclass (<code>Hilt_App</code>) — you don't see it in your code.</p>
+
+<h3>Step 3 — Mark Android entry points</h3>
+<pre><code><span class="anno">@AndroidEntryPoint</span>
+<span class="kw">class</span> MainActivity : ComponentActivity() {
+    <span class="anno">@Inject lateinit var</span> analytics: Analytics
+    ...
+}
+
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> UserViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: UserRepository
+) : ViewModel()</code></pre>
+
+<h3>Step 4 — Provide things Hilt can't construct itself</h3>
+<pre><code><span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> NetworkModule {
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideOkHttp(): OkHttpClient = OkHttpClient.Builder().build()
+
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideRetrofit(client: OkHttpClient): Retrofit = Retrofit.Builder()
+        .baseUrl(<span class="str">"https://api.example.com/"</span>)
+        .client(client)
+        .build()
+
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideUserApi(retrofit: Retrofit): UserApi = retrofit.create()
+}</code></pre>
+
+<p>That's it. Now <code>UserViewModel</code> works — Hilt sees it needs a <code>UserRepository</code>, finds <code>UserRepositoryImpl</code> via the binding (next sections), which needs <code>UserApi</code> + <code>UserDao</code>, both of which it knows how to provide. Wires everything automatically.</p>
+
+<!-- =============== 5. COMPONENTS & SCOPES =============== -->
+<h2 id="s5">5. Components and scopes — the full hierarchy</h2>
+
+<p>A <strong>component</strong> is a container of bindings tied to an Android lifecycle. A <strong>scope</strong> is an annotation that marks a binding to live as long as its owning component. Hilt ships predefined components — you almost never define custom ones.</p>
+
+<div class="diagram">┌──────────────────────────────────────────────────────────────┐
+│  SingletonComponent (lives for app process)                  │
+│  Scope: @Singleton                                           │
+│  Use: Database, OkHttpClient, Retrofit, app-wide repos       │
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │  ActivityRetainedComponent (survives config change)    │  │
+│  │  Scope: @ActivityRetainedScoped                        │  │
+│  │  Use: Shared state across Fragments / config-survive    │  │
+│  │                                                        │  │
+│  │  ┌──────────────────────────────────────────────────┐  │  │
+│  │  │  ViewModelComponent (per ViewModel instance)     │  │  │
+│  │  │  Scope: @ViewModelScoped                         │  │  │
+│  │  │  Use: Per-VM helpers                             │  │  │
+│  │  └──────────────────────────────────────────────────┘  │  │
+│  │                                                        │  │
+│  │  ┌──────────────────────────────────────────────────┐  │  │
+│  │  │  ActivityComponent (re-created on rotation)      │  │  │
+│  │  │  Scope: @ActivityScoped                          │  │  │
+│  │  │                                                  │  │  │
+│  │  │  ┌────────────────────────────────────────────┐  │  │  │
+│  │  │  │  FragmentComponent                         │  │  │  │
+│  │  │  │  Scope: @FragmentScoped                    │  │  │  │
+│  │  │  │                                            │  │  │  │
+│  │  │  │  ┌──────────────────────────────────────┐  │  │  │  │
+│  │  │  │  │  ViewComponent / ViewWithFragment    │  │  │  │  │
+│  │  │  │  │  Scope: @ViewScoped                  │  │  │  │  │
+│  │  │  │  └──────────────────────────────────────┘  │  │  │  │
+│  │  │  └────────────────────────────────────────────┘  │  │  │
+│  │  └──────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │  ServiceComponent                                      │  │
+│  │  Scope: @ServiceScoped                                 │  │
+│  └────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘</div>
+
+<h3>What each scope means in plain English</h3>
+<table>
+  <thead><tr><th>Scope</th><th>Lives for</th><th>Typical use</th></tr></thead>
+  <tbody>
+    <tr><td>@Singleton</td><td>Entire app process</td><td>OkHttpClient, AppDatabase, Retrofit, top-level Repository</td></tr>
+    <tr><td>@ActivityRetainedScoped</td><td>Survives configuration change; cleared when Activity finishes for real</td><td>Multi-Fragment shared state, per-flow controller state (checkout flow VMs use this)</td></tr>
+    <tr><td>@ViewModelScoped</td><td>Per ViewModel instance</td><td>Per-VM helpers (rare; usually constructor-injected)</td></tr>
+    <tr><td>@ActivityScoped</td><td>Per Activity instance (re-created on rotation)</td><td>Per-Activity caches</td></tr>
+    <tr><td>@FragmentScoped</td><td>Per Fragment instance</td><td>Per-Fragment helpers</td></tr>
+    <tr><td>@ViewScoped</td><td>Per View instance</td><td>Custom View helpers</td></tr>
+    <tr><td>@ServiceScoped</td><td>Per Service instance</td><td>Service-level helpers</td></tr>
+  </tbody>
+</table>
+
+<h3>Rule of thumb — pick the smallest scope that satisfies the need</h3>
+<ul>
+  <li><strong>Don't @Singleton everything.</strong> Singletons survive forever; if they hold any state, that state survives forever too.</li>
+  <li><strong>Stateless services</strong> (mappers, utilities) → no scope (Hilt creates a fresh instance on each request — usually negligible cost)</li>
+  <li><strong>Heavy stateful objects</strong> (Database, OkHttp pool) → @Singleton</li>
+  <li><strong>Per-screen flow state</strong> (checkout state across multiple Fragments) → @ActivityRetainedScoped</li>
+  <li><strong>Per ViewModel</strong> (rare; usually you'd just constructor-inject) → @ViewModelScoped</li>
+</ul>
+
+<div class="callout warn"><strong>Common bug:</strong> @Singleton scope on a class that holds an Activity reference → leaks the Activity for the entire app lifetime. Singletons should hold nothing Activity-bound.</div>
+
+<!-- =============== 6. PROVIDES VS BINDS =============== -->
+<h2 id="s6">6. <code>@Provides</code> vs <code>@Binds</code> — when each</h2>
+
+<table>
+  <thead><tr><th></th><th>@Provides</th><th>@Binds</th></tr></thead>
+  <tbody>
+    <tr><td>Defined in</td><td>Object module (or non-abstract class)</td><td>Abstract function in abstract class / interface</td></tr>
+    <tr><td>Body</td><td>You write the construction logic</td><td>Just declares "interface I → impl Class"; no body</td></tr>
+    <tr><td>Use when</td><td>Constructing 3rd-party types you don't own (Retrofit, OkHttp)</td><td>Binding interface → concrete class you wrote (with @Inject constructor)</td></tr>
+    <tr><td>Bytecode</td><td>Generates a factory class that calls your method</td><td>Generates one fewer factory class than @Provides — slightly cheaper at build time</td></tr>
+  </tbody>
+</table>
+
+<h3>@Provides — for things you don't construct yourself</h3>
+<pre><code><span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> DataModule {
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideOkHttp(): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(LoggingInterceptor())
+        .build()
+}</code></pre>
+
+<h3>@Binds — for "this interface is implemented by this class"</h3>
+<pre><code><span class="kw">interface</span> UserRepository { <span class="kw">suspend fun</span> getUser(id: String): User }
+
+<span class="kw">class</span> UserRepositoryImpl @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> api: UserApi,
+    <span class="kw">private val</span> dao: UserDao
+) : UserRepository { ... }
+
+<span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">abstract class</span> RepositoryModule {                <span class="com">// abstract class, not object</span>
+    <span class="anno">@Binds @Singleton</span>
+    <span class="kw">abstract fun</span> bindUserRepo(impl: UserRepositoryImpl): UserRepository
+}</code></pre>
+
+<p>Why use @Binds instead of @Provides for this case?</p>
+<pre><code><span class="com">// @Provides equivalent — works but more code + extra factory:</span>
+<span class="anno">@Provides @Singleton</span>
+<span class="kw">fun</span> provideUserRepo(api: UserApi, dao: UserDao): UserRepository = UserRepositoryImpl(api, dao)
+
+<span class="com">// @Binds — Hilt sees UserRepositoryImpl already has @Inject constructor;</span>
+<span class="com">// just notes "when UserRepository is asked, hand back the UserRepositoryImpl Hilt knows how to make"</span></code></pre>
+
+<div class="callout"><strong>Rule:</strong> use @Binds whenever you have an interface and a concrete impl with @Inject constructor — it's the canonical pattern. Use @Provides for everything else (3rd-party types, things needing custom construction, primitive values, things that need to be lazy).</div>
+
+<!-- =============== 7. MULTIBINDING =============== -->
+<h2 id="s7">7. Multibinding — <code>@IntoSet</code>, <code>@IntoMap</code></h2>
+
+<p>Multibinding lets multiple providers contribute to a single Set or Map. Used for plugin systems, interceptor chains, analytics handlers, navigation routes.</p>
+
+<h3>@IntoSet — collect many of the same type</h3>
+<pre><code><span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> NetworkModule {
+    <span class="anno">@Provides @IntoSet</span>
+    <span class="kw">fun</span> provideAuthInterceptor(tokens: TokenStore): Interceptor =
+        AuthInterceptor(tokens)
+
+    <span class="anno">@Provides @IntoSet</span>
+    <span class="kw">fun</span> provideLoggingInterceptor(): Interceptor =
+        HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideOkHttp(interceptors: Set&lt;<span class="anno">@JvmSuppressWildcards</span> Interceptor&gt;): OkHttpClient =
+        OkHttpClient.Builder().apply {
+            interceptors.forEach { addInterceptor(it) }
+        }.build()
+}</code></pre>
+
+<p>Now any module in any feature can add another <code>@IntoSet Interceptor</code> — no need to modify the OkHttp provider. Pure <em>Open/Closed Principle</em> in action.</p>
+
+<h3>@IntoMap — keyed selection</h3>
+<pre><code><span class="kw">interface</span> CommandHandler { <span class="kw">suspend fun</span> handle(payload: Bundle) }
+
+<span class="anno">@MapKey</span>
+<span class="kw">annotation class</span> CommandKey(<span class="kw">val</span> value: String)
+
+<span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> CommandsModule {
+    <span class="anno">@Provides @IntoMap @CommandKey(<span class="str">"open_url"</span>)</span>
+    <span class="kw">fun</span> provideOpenUrl(impl: OpenUrlHandler): CommandHandler = impl
+
+    <span class="anno">@Provides @IntoMap @CommandKey(<span class="str">"refresh"</span>)</span>
+    <span class="kw">fun</span> provideRefresh(impl: RefreshHandler): CommandHandler = impl
+}
+
+<span class="com">// Consumer just receives the whole map:</span>
+<span class="kw">class</span> CommandRouter @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> handlers: Map&lt;String, <span class="anno">@JvmSuppressWildcards</span> CommandHandler&gt;
+) {
+    <span class="kw">suspend fun</span> dispatch(name: String, payload: Bundle) {
+        handlers[name]?.handle(payload)
+    }
+}</code></pre>
+
+<div class="callout"><strong>The <code>@JvmSuppressWildcards</code> trick:</strong> Kotlin generics emit Java wildcards (<code>Set&lt;? extends Interceptor&gt;</code>) which Dagger doesn't recognize. The annotation tells the compiler "use exact types." Required for multibinding consumers.</div>
+
+<!-- =============== 8. QUALIFIERS =============== -->
+<h2 id="s8">8. Qualifiers — when you have two of the same type</h2>
+
+<p>You have two <code>OkHttpClient</code>s — one for your auth-required API, one for image loading without auth. How does Hilt know which is which? With qualifiers.</p>
+
+<pre><code><span class="anno">@Qualifier @Retention(AnnotationRetention.BINARY)</span>
+<span class="kw">annotation class</span> Authenticated
+
+<span class="anno">@Qualifier @Retention(AnnotationRetention.BINARY)</span>
+<span class="kw">annotation class</span> Unauthenticated
+
+<span class="anno">@Module @InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> NetworkModule {
+    <span class="anno">@Provides @Singleton @Authenticated</span>
+    <span class="kw">fun</span> provideAuthClient(<span class="anno">@Authenticated</span> base: OkHttpClient, auth: AuthInterceptor): OkHttpClient =
+        base.newBuilder().addInterceptor(auth).build()
+
+    <span class="anno">@Provides @Singleton @Unauthenticated</span>
+    <span class="kw">fun</span> provideUnauthClient(): OkHttpClient = OkHttpClient()
+}
+
+<span class="com">// Consumer specifies which one</span>
+<span class="kw">class</span> UserRepository @Inject <span class="kw">constructor</span>(
+    <span class="anno">@Authenticated</span> <span class="kw">private val</span> client: OkHttpClient
+)</code></pre>
+
+<h3>Built-in qualifiers worth knowing</h3>
+<table>
+  <thead><tr><th>Annotation</th><th>What it gives you</th></tr></thead>
+  <tbody>
+    <tr><td><code>@ApplicationContext</code></td><td>Application context (use anywhere)</td></tr>
+    <tr><td><code>@ActivityContext</code></td><td>Activity context (only inside Activity-scoped components)</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">class</span> CrashLogger @Inject <span class="kw">constructor</span>(
+    <span class="anno">@ApplicationContext</span> <span class="kw">private val</span> ctx: Context        <span class="com">// always Application context</span>
+)</code></pre>
+
+<!-- =============== 9. CONSTRUCTOR VS FIELD INJECTION =============== -->
+<h2 id="s9">9. Constructor injection vs field injection</h2>
+
+<table>
+  <thead><tr><th></th><th>Constructor injection</th><th>Field injection</th></tr></thead>
+  <tbody>
+    <tr><td>Where</td><td>Anywhere YOU control construction (Repos, ViewModels, UseCases)</td><td>Where the FRAMEWORK constructs you (Activity, Fragment, Service, BroadcastReceiver, View)</td></tr>
+    <tr><td>Syntax</td><td><code>@Inject constructor(...)</code></td><td><code>@Inject lateinit var x: X</code></td></tr>
+    <tr><td>Testability</td><td>Excellent — pass deps as constructor args</td><td>Worse — need a way to inject the field in tests</td></tr>
+    <tr><td>Immutability</td><td>val (immutable)</td><td>lateinit var (mutable, but Kotlin warns if reassigned)</td></tr>
+  </tbody>
+</table>
+
+<h3>Constructor — preferred (90% of your code)</h3>
+<pre><code><span class="kw">class</span> UserRepository @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> api: UserApi,
+    <span class="kw">private val</span> dao: UserDao
+) : UserRepository { ... }
+
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> UserViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: UserRepository,
+    <span class="kw">private val</span> handle: SavedStateHandle
+) : ViewModel()</code></pre>
+
+<h3>Field — required for Android-instantiated components</h3>
+<pre><code><span class="anno">@AndroidEntryPoint</span>
+<span class="kw">class</span> MainActivity : ComponentActivity() {
+    <span class="anno">@Inject lateinit var</span> analytics: Analytics       <span class="com">// injected before super.onCreate</span>
+    <span class="anno">@Inject lateinit var</span> featureFlags: FeatureFlags
+}</code></pre>
+
+<div class="callout warn"><strong>Trap:</strong> if you use field injection in a class you create yourself (<code>val obj = MyClass()</code>), the @Inject fields stay <strong>uninitialized</strong> — Hilt only injects through entry points it knows about. For your own classes, always use constructor injection.</div>
+
+<!-- =============== 10. VIEWMODEL =============== -->
+<h2 id="s10">10. Hilt with ViewModel — <code>@HiltViewModel</code></h2>
+
+<pre><code><span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> UserViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: UserRepository,
+    <span class="kw">private val</span> handle: SavedStateHandle
+) : ViewModel() { ... }
+
+<span class="com">// In Compose</span>
+<span class="anno">@Composable fun</span> Screen(vm: UserViewModel = hiltViewModel()) { ... }
+
+<span class="com">// In a Fragment</span>
+<span class="anno">@AndroidEntryPoint</span>
+<span class="kw">class</span> UserFragment : Fragment() {
+    <span class="kw">private val</span> vm: UserViewModel <span class="kw">by</span> viewModels()
+}</code></pre>
+
+<h3>Sharing a ViewModel across Composables in a nav graph</h3>
+<pre><code>navigation&lt;CheckoutGraph&gt;(startDestination = CartScreen) {
+    composable&lt;CartScreen&gt; { entry -&gt;
+        <span class="kw">val</span> parent = remember(entry) {
+            navController.getBackStackEntry&lt;CheckoutGraph&gt;()
+        }
+        <span class="kw">val</span> sharedVm: CheckoutViewModel = hiltViewModel(parent)
+        ...
+    }
+    composable&lt;PaymentScreen&gt; { entry -&gt;
+        <span class="kw">val</span> parent = remember(entry) {
+            navController.getBackStackEntry&lt;CheckoutGraph&gt;()
+        }
+        <span class="kw">val</span> sharedVm: CheckoutViewModel = hiltViewModel(parent)
+        ...
+    }
+}</code></pre>
+
+<p>The shared VM lives until the user pops the entire CheckoutGraph — perfect for multi-step wizards.</p>
+
+<h3>SavedStateHandle</h3>
+<p>Hilt knows about <code>SavedStateHandle</code>; just include it in your ViewModel's constructor and Hilt provides it (with the args from navigation deep links / Activity intent extras pre-populated).</p>
+
+<!-- =============== 11. WORKMANAGER =============== -->
+<h2 id="s11">11. Hilt with WorkManager</h2>
+
+<p>WorkManager creates Worker instances itself, so you can't constructor-inject directly. Use Hilt's <code>HiltWorkerFactory</code>.</p>
+
+<pre><code><span class="com">// 1. Worker — annotate</span>
+<span class="anno">@HiltWorker</span>
+<span class="kw">class</span> SyncWorker <span class="anno">@AssistedInject constructor</span>(
+    <span class="anno">@Assisted</span> ctx: Context,
+    <span class="anno">@Assisted</span> params: WorkerParameters,
+    <span class="kw">private val</span> repo: UserRepository                <span class="com">// regular DI dep</span>
+) : CoroutineWorker(ctx, params) {
+    <span class="kw">override suspend fun</span> doWork(): Result {
+        repo.sync()
+        <span class="kw">return</span> Result.success()
+    }
+}
+
+<span class="com">// 2. Application — implement Configuration.Provider</span>
+<span class="anno">@HiltAndroidApp</span>
+<span class="kw">class</span> App : Application(), Configuration.Provider {
+    <span class="anno">@Inject lateinit var</span> workerFactory: HiltWorkerFactory
+
+    <span class="kw">override val</span> workManagerConfiguration: Configuration
+        <span class="kw">get</span>() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+}
+
+<span class="com">// 3. Manifest — disable WorkManager's default initializer (we provide our own)</span>
+&lt;provider
+    android:name=<span class="str">"androidx.startup.InitializationProvider"</span>
+    android:authorities=<span class="str">"${applicationId}.androidx-startup"</span>
+    android:exported=<span class="str">"false"</span>
+    tools:node=<span class="str">"merge"</span>&gt;
+    &lt;meta-data android:name=<span class="str">"androidx.work.WorkManagerInitializer"</span>
+        android:value=<span class="str">"androidx.startup"</span>
+        tools:node=<span class="str">"remove"</span> /&gt;
+&lt;/provider&gt;</code></pre>
+
+<p><code>@AssistedInject</code> + <code>@Assisted</code> are the dance: WorkManager provides <code>Context</code> and <code>WorkerParameters</code> (the @Assisted args); Hilt provides everything else.</p>
+
+<!-- =============== 12. NAVIGATION =============== -->
+<h2 id="s12">12. Hilt with Compose Navigation</h2>
+
+<p>Already shown in §10. The key APIs:</p>
+<ul>
+  <li><code>hiltViewModel()</code> — get/create a ViewModel scoped to the current NavBackStackEntry</li>
+  <li><code>hiltViewModel(parentEntry)</code> — get/create a ViewModel scoped to a specific parent entry (for shared VMs across a nested graph)</li>
+</ul>
+
+<p>The lifecycle: ViewModel is created when the entry enters the back stack; cleared when the entry is popped (not when it goes off-screen — same as VM survival across rotation).</p>
+
+<!-- =============== 13. ENTRY POINTS =============== -->
+<h2 id="s13">13. <code>@EntryPoint</code> — when you can't @Inject</h2>
+
+<p>Hilt only injects via <code>@AndroidEntryPoint</code>-annotated classes (Activities, Fragments, Services, etc.). For places Hilt doesn't directly support — ContentProviders, classes you don't own, framework callbacks — use <code>@EntryPoint</code> to grab dependencies manually.</p>
+
+<pre><code><span class="anno">@EntryPoint</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">interface</span> RepositoryEntryPoint {
+    <span class="kw">fun</span> userRepository(): UserRepository
+}
+
+<span class="com">// Inside a ContentProvider (Hilt doesn't support direct injection here)</span>
+<span class="kw">class</span> NotesContentProvider : ContentProvider() {
+    <span class="kw">private val</span> repo: UserRepository <span class="kw">by</span> lazy {
+        EntryPointAccessors.fromApplication(
+            context!!.applicationContext,
+            RepositoryEntryPoint::<span class="kw">class</span>.java
+        ).userRepository()
+    }
+    ...
+}</code></pre>
+
+<p>Common reasons:</p>
+<ul>
+  <li>ContentProvider (Hilt 2.x doesn't support directly)</li>
+  <li>Custom Application init blocks (App Startup library Initializer)</li>
+  <li>JobService (Hilt supports Service but not all variants)</li>
+  <li>BroadcastReceiver dynamically registered via Context (use @AndroidEntryPoint for manifest-declared receivers)</li>
+</ul>
+
+<!-- =============== 14. WHAT HILT GENERATES =============== -->
+<h2 id="s14">14. ★ What Hilt actually generates — the bytecode walkthrough</h2>
+
+<p>Hilt is "Dagger preconfigured for Android." Your KSP/kapt build phase produces three categories of generated classes:</p>
+
+<h3>1. Component graph — the actual DI engine</h3>
+<p>For each <code>@HiltAndroidApp</code> module, Hilt generates a class like <code>DaggerApp_HiltComponents_SingletonC</code> (you can find it in <code>build/generated/.../hilt</code>). This class:</p>
+<ul>
+  <li>Implements <code>SingletonComponent</code></li>
+  <li>Holds singleton instances (lazily constructed)</li>
+  <li>Has factory methods for every type Hilt knows how to construct</li>
+  <li>Hosts subcomponents — <code>ActivityRetainedComponent</code>, <code>ActivityComponent</code>, etc. — as nested classes</li>
+</ul>
+
+<h3>2. <code>Hilt_*</code> shells for entry points</h3>
+<p>For every <code>@AndroidEntryPoint</code> class (Activity, Fragment, etc.), Hilt generates a base class that intercepts <code>onCreate</code> to inject fields:</p>
+<pre><code><span class="com">// You write:</span>
+<span class="anno">@AndroidEntryPoint</span>
+<span class="kw">class</span> MainActivity : ComponentActivity() {
+    <span class="anno">@Inject lateinit var</span> analytics: Analytics
+}
+
+<span class="com">// Hilt generates (simplified):</span>
+<span class="kw">class</span> Hilt_MainActivity : ComponentActivity() {
+    <span class="kw">override fun</span> onCreate(b: Bundle?) {
+        inject()                       <span class="com">// resolves dependencies, sets fields</span>
+        <span class="kw">super</span>.onCreate(b)
+    }
+    <span class="kw">private fun</span> inject() {
+        DaggerApp_HiltComponents_SingletonC.create()
+            .activityComponent(<span class="kw">this</span>)
+            .injectMainActivity(<span class="kw">this</span>)
+    }
+}
+
+<span class="com">// Your MainActivity at compile time becomes:</span>
+<span class="kw">class</span> MainActivity : Hilt_MainActivity() {           <span class="com">// silent rebase</span>
+    <span class="anno">@Inject lateinit var</span> analytics: Analytics
+}</code></pre>
+<p>Hilt's Gradle plugin does the silent rebase — your code never sees <code>Hilt_MainActivity</code> directly.</p>
+
+<h3>3. Provider factories — one per @Provides / @Binds</h3>
+<p>For every <code>@Provides</code> method, Hilt generates a Factory class:</p>
+<pre><code><span class="com">// You write:</span>
+<span class="anno">@Provides @Singleton</span>
+<span class="kw">fun</span> provideOkHttp(): OkHttpClient = OkHttpClient.Builder().build()
+
+<span class="com">// Hilt generates:</span>
+<span class="kw">class</span> NetworkModule_ProvideOkHttpFactory : Provider&lt;OkHttpClient&gt; {
+    <span class="kw">private val</span> module: NetworkModule
+    <span class="kw">constructor</span>(module: NetworkModule) { <span class="kw">this</span>.module = module }
+    <span class="kw">override fun</span> get(): OkHttpClient = module.provideOkHttp()
+
+    <span class="kw">companion object</span> {
+        <span class="kw">fun</span> create(module: NetworkModule) = NetworkModule_ProvideOkHttpFactory(module)
+    }
+}</code></pre>
+
+<p>The generated component wires factories together: <code>Retrofit_Factory</code> calls into <code>OkHttp_Factory.get()</code>; the @Singleton scope wraps each factory in a <code>DoubleCheck</code> for thread-safe lazy single-instance behavior.</p>
+
+<h3>4. Hilt's "aggregating" magic across modules</h3>
+<p>For multi-module apps, the Hilt processor runs in two phases:</p>
+<ol>
+  <li><strong>Per-module</strong>: each module emits "metadata" descriptors of its bindings</li>
+  <li><strong>Aggregating</strong> (in the <code>:app</code> module): collects metadata from every dependency, builds the full component graph</li>
+</ol>
+<p>This is why adding a new <code>@Module</code> in any feature module just works — the app module's aggregating processor picks it up.</p>
+
+<h3>How to inspect what Hilt generated</h3>
+<ul>
+  <li>Look in <code>build/generated/ksp/.../hilt/</code> after a build</li>
+  <li>Use Android Studio's "Go to Implementation" on the interface — Hilt-generated impl shows up</li>
+  <li>For debugging compile errors, enable <code>kapt.classloaders.cache.size = 0</code> + <code>kapt.include.compile.classpath = false</code> (slower but clearer error messages)</li>
+</ul>
+
+<!-- =============== 15. TESTING WITH HILT =============== -->
+<h2 id="s15">15. Testing with Hilt</h2>
+
+<h3>Replace production modules with test modules</h3>
+<pre><code><span class="anno">@TestInstallIn(components = [SingletonComponent::class], replaces = [DataModule::class])</span>
+<span class="anno">@Module</span>
+<span class="kw">object</span> FakeDataModule {
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideRepo(): UserRepository = FakeUserRepository()
+}</code></pre>
+
+<h3>Custom Application + custom test runner</h3>
+<pre><code><span class="anno">@CustomTestApplication(BaseApp::class)</span>
+<span class="kw">interface</span> HiltTestApplication                <span class="com">// generates HiltTestApplication_Application</span>
+
+<span class="kw">class</span> HiltTestRunner : AndroidJUnitRunner() {
+    <span class="kw">override fun</span> newApplication(cl: ClassLoader?, name: String?, ctx: Context?): Application {
+        <span class="kw">return super</span>.newApplication(cl, HiltTestApplication_Application::<span class="kw">class</span>.java.name, ctx)
+    }
+}
+<span class="com">// build.gradle.kts: testInstrumentationRunner = "com.example.HiltTestRunner"</span></code></pre>
+
+<h3>The test itself</h3>
+<pre><code><span class="anno">@HiltAndroidTest</span>
+<span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> NotesScreenTest {
+    <span class="anno">@get:Rule(order = 0) val</span> hilt = HiltAndroidRule(<span class="kw">this</span>)
+    <span class="anno">@get:Rule(order = 1) val</span> compose = createAndroidComposeRule&lt;HiltTestActivity&gt;()
+
+    <span class="anno">@Inject lateinit var</span> repo: UserRepository    <span class="com">// auto-injected = FakeUserRepository</span>
+
+    <span class="anno">@Before fun</span> init() { hilt.inject() }
+
+    <span class="anno">@Test fun</span> showsNotes() {
+        runBlocking { (repo <span class="kw">as</span> FakeUserRepository).seed(...) }
+        compose.setContent { NotesScreen() }
+        compose.onNodeWithText(<span class="str">"Hello"</span>).assertIsDisplayed()
+    }
+}</code></pre>
+
+<div class="callout warn"><strong>Common pitfalls:</strong> forgetting <code>hilt.inject()</code> in @Before → fields are uninitialized; getting the rule order wrong (Hilt rule must be first); forgetting to add the Hilt test runner to Gradle config.</div>
+
+<!-- =============== 16. KMP =============== -->
+<h2 id="s16">16. Hilt + KMP — what works, what doesn't</h2>
+
+<table>
+  <thead><tr><th>Scenario</th><th>Hilt suitable?</th><th>Recommendation</th></tr></thead>
+  <tbody>
+    <tr><td>Android-only app</td><td>Yes</td><td>Hilt all the way</td></tr>
+    <tr><td>KMP shared module (Android + iOS)</td><td>No (Android-only)</td><td><strong>Koin</strong> in commonMain</td></tr>
+    <tr><td>Mixed app: KMP shared module + Android-only ViewModels/UI</td><td>Both</td><td>Koin in shared, Hilt in Android app — bridge with @Provides that exposes Koin singletons to Hilt graph</td></tr>
+  </tbody>
+</table>
+
+<h3>Bridge pattern for the mixed case</h3>
+<pre><code><span class="com">// In Android app — Hilt module that pulls from Koin's shared graph</span>
+<span class="anno">@Module</span>
+<span class="anno">@InstallIn(SingletonComponent::class)</span>
+<span class="kw">object</span> SharedBridgeModule {
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideUserRepository(): UserRepository =
+        SharedKoinGraph.koin.get()        <span class="com">// pulls from KMP shared Koin context</span>
+}</code></pre>
+
+<!-- =============== 17. COMMON MISTAKES =============== -->
+<h2 id="s17">17. Common mistakes</h2>
+
+<div class="two-col">
+  <div class="col-card bad"><strong>Don't</strong>
+    <ul>
+      <li>@Singleton on a class that holds an Activity (leak)</li>
+      <li>@Inject lateinit var in a class you create yourself (won't be injected)</li>
+      <li>Apply field injection without @AndroidEntryPoint</li>
+      <li>Forget @JvmSuppressWildcards on Set/Map multibinding consumers</li>
+      <li>Forget @HiltAndroidApp on Application</li>
+      <li>Forget the Hilt test runner in Gradle for instrumented tests</li>
+      <li>Put business logic in @Provides methods (move to a helper class)</li>
+      <li>Use Hilt for KMP shared code (it's Android-only)</li>
+      <li>Override the wrong scope (everything @Singleton becomes a memory leak vector)</li>
+      <li>Catch DaggerComponent generation errors at runtime — they're compile-time</li>
+      <li>Use @Provides where @Binds suffices (extra factory class)</li>
+    </ul>
+  </div>
+  <div class="col-card good"><strong>Do</strong>
+    <ul>
+      <li>Default to constructor injection</li>
+      <li>Use @Binds for interface → impl wiring</li>
+      <li>Use @Provides for 3rd-party constructors</li>
+      <li>Pick the smallest scope that satisfies the lifetime</li>
+      <li>Inject CoroutineDispatcher (don't hardcode <code>Dispatchers.IO</code>)</li>
+      <li>Use qualifiers when you have two of the same type</li>
+      <li>Use @TestInstallIn modules for tests</li>
+      <li>Use @ApplicationContext (never raw Context in singletons)</li>
+      <li>Run KSP (faster than kapt) for Hilt processing</li>
+      <li>Read the generated component classes when debugging</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 18. INTERVIEW Q&A =============== -->
+<h2 id="s18">18. Interview Q&amp;A</h2>
+
+<h3>Q: "Why use Hilt instead of writing a Service Locator yourself?"</h3>
+<p>Three reasons. (1) <strong>Compile-time validation</strong> — missing bindings fail the build, not at runtime. (2) <strong>Scope management</strong> — built-in @Singleton, @ActivityRetainedScoped, @ViewModelScoped with proper lifecycle cleanup. (3) <strong>Multi-module aggregation</strong> — modules can declare bindings; the app module aggregates them automatically. A Service Locator at app scale becomes a Gradle-coupled spaghetti graph; Hilt keeps it clean.</p>
+
+<h3>Q: "@Provides vs @Binds — when each?"</h3>
+<p>@Binds when you have an interface and a concrete impl with @Inject constructor — the canonical pattern. @Provides for everything else: 3rd-party types you can't annotate (OkHttp, Retrofit, etc.), values needing custom construction, primitives.</p>
+
+<h3>Q: "How does Hilt know which scope to give my class?"</h3>
+<p>You annotate the binding (the @Provides method, @Binds method, or the class itself for @Inject constructor) with the scope annotation: @Singleton, @ActivityRetainedScoped, @ViewModelScoped, etc. Without a scope annotation, the binding is "unscoped" — Hilt creates a fresh instance every time it's requested. This is the default.</p>
+
+<h3>Q: "What's the difference between @Singleton and a Kotlin <code>object</code>?"</h3>
+<p>Both are app-process-singletons. <code>object</code> can't have constructor parameters, can't be subbed in tests (no DI). @Singleton-scoped classes have @Inject constructor with dependencies — testable, swappable, future-proof. Use @Singleton for anything with dependencies; use <code>object</code> only for stateless utility containers.</p>
+
+<h3>Q: "What is @AssistedInject for?"</h3>
+<p>For classes whose construction needs both DI dependencies AND runtime parameters. Most common case: WorkManager Workers — they're constructed with <code>(Context, WorkerParameters)</code> from WorkManager itself, plus your own deps from Hilt. @AssistedInject + @Assisted lets Hilt provide its part while leaving the rest to be supplied at construction time.</p>
+
+<h3>Q: "How do you share a ViewModel across multiple Composables?"</h3>
+<p>Scope it to a parent NavBackStackEntry. Use <code>navController.getBackStackEntry&lt;ParentRoute&gt;()</code> and pass that to <code>hiltViewModel(parentEntry)</code>. The VM lives until the parent destination is popped — perfect for multi-step flows like checkout. Never use Activity-scoped VMs for multi-Fragment flows in 2026 — Compose Nav scoping is the right tool.</p>
+
+<h3>Q: "How do you mock a Repository in a Hilt test?"</h3>
+<p>Don't mock — fake. Write a <code>FakeUserRepository</code> implementing the same interface. In your test source set, create a module annotated <code>@TestInstallIn(components = [SingletonComponent::class], replaces = [DataModule::class])</code> that provides the fake. Hilt automatically swaps the production module for your test module in tests.</p>
+
+<h3>Q: "Why is the @JvmSuppressWildcards annotation needed for multibinding?"</h3>
+<p>Kotlin generics emit Java wildcards by default. <code>Set&lt;Interceptor&gt;</code> in Kotlin source becomes <code>Set&lt;? extends Interceptor&gt;</code> in bytecode. Dagger looks up bindings by exact type; <code>Set&lt;? extends Interceptor&gt;</code> ≠ <code>Set&lt;Interceptor&gt;</code> in its lookup table. The annotation tells the compiler "use exact types here." Required for any multibinding consumer.</p>
+
+<h3>Q: "Hilt vs Koin — which would you pick today and why?"</h3>
+<p>For a pure Android app: <strong>Hilt</strong> — compile-time safety, Android-specific scopes, IDE support. For a KMP project sharing modules between Android and iOS: <strong>Koin</strong> — pure Kotlin, multiplatform. For mixed: Koin in shared module, Hilt in Android app, bridge them via @Provides methods.</p>
+
+<h3>Q: "How does Hilt handle config changes?"</h3>
+<p>Through scope hierarchy. @Singleton survives everything. @ActivityRetainedScoped survives configuration change (re-uses the ActivityRetainedComponent across destroy/recreate of the Activity). @ActivityScoped is recreated on rotation along with the Activity. ViewModelScoped is per-ViewModel which itself survives rotation via the standard ViewModelStore mechanism.</p>
+
+<h3>Q: "Why does Hilt require KSP/kapt?"</h3>
+<p>Hilt is annotation-driven. The processor generates the actual DI component graph at compile time — factories per @Provides, the singleton container, entry-point shells. No reflection at runtime; everything's just generated code calling generated factories. KSP is preferred over kapt: 2-3× faster, native Kotlin AST awareness, supported by Hilt 2.48+.</p>
+
+<h3>Q: "How do you debug a Hilt compile error like 'cannot be provided'?"</h3>
+<p>Read the error carefully — Hilt names the type and which @Inject site asked for it. Common causes: missing @Inject constructor on the class; missing @Module entry; module not @InstallIn the right component; qualifier mismatch (provider has @Auth, consumer doesn't or vice versa); scope mismatch (consumer is @Singleton but dependency is @ActivityScoped — narrower scope can't satisfy wider).</p>
+
+<!-- =============== 19. RECALL =============== -->
+<h2 id="s19">19. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The mental model</h3>
+  <p>DI = receive your dependencies, don't construct them. Hilt = Dagger preconfigured for Android with built-in scopes. Compile-time validation (KSP/kapt). The framework wires constructor-injected classes automatically; you only @Provides what Hilt can't construct (3rd-party types).</p>
+
+  <h3>The setup</h3>
+  <ul>
+    <li>@HiltAndroidApp on Application</li>
+    <li>@AndroidEntryPoint on Activity / Fragment / Service / View</li>
+    <li>@HiltViewModel on ViewModels</li>
+    <li>@Module @InstallIn(...) for @Provides / @Binds</li>
+    <li>KSP plugin for processing</li>
+  </ul>
+
+  <h3>Scopes (smallest that fits)</h3>
+  <ul>
+    <li>@Singleton — app process</li>
+    <li>@ActivityRetainedScoped — survives rotation, multi-Fragment shared state</li>
+    <li>@ViewModelScoped — per VM</li>
+    <li>@ActivityScoped / @FragmentScoped / @ViewScoped / @ServiceScoped</li>
+    <li>(no annotation) — fresh instance each time</li>
+  </ul>
+
+  <h3>Bindings</h3>
+  <ul>
+    <li>@Provides — for 3rd-party / custom construction</li>
+    <li>@Binds (abstract) — interface → impl with @Inject constructor</li>
+    <li>@IntoSet / @IntoMap — multibinding</li>
+    <li>@Qualifier — disambiguate same-type dependencies</li>
+    <li>@AssistedInject + @Assisted — runtime params (Workers)</li>
+    <li>@EntryPoint — manual access from non-Hilt classes</li>
+  </ul>
+
+  <h3>Testing</h3>
+  <ul>
+    <li>@TestInstallIn replaces production modules</li>
+    <li>@HiltAndroidTest + HiltAndroidRule + hilt.inject() in @Before</li>
+    <li>Custom test Application + HiltTestRunner in Gradle config</li>
+    <li>Prefer fakes over mocks (see Testing cheat sheet)</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li>@Singleton holding Activity reference (leak)</li>
+    <li>Field injection without @AndroidEntryPoint</li>
+    <li>Forgetting @JvmSuppressWildcards on Set/Map consumers</li>
+    <li>Hilt in KMP shared (use Koin)</li>
+    <li>Business logic inside @Provides methods</li>
+    <li>Same-type bindings without qualifiers</li>
+    <li>kapt when KSP works (faster)</li>
+  </ul>
+</div>
+
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read top to bottom for understanding · skim §17 (mistakes), §18 (Q&amp;A), §19 (recall) before any DI interview.
+    Pair with the Architecture, Testing, and Coroutines cheat sheets in this repo.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'hilt-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>

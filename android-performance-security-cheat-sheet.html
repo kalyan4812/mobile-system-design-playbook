@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Android Performance &amp; Security Cheat Sheet — 2026</title>
+<meta name="description" content="A dense personal cheat sheet covering Android performance engineering (cold start, Baseline Profiles, R8, frame timing, GC, bitmap memory, battery, ANR, Compose perf, profiling tools) and Android security (Keystore, EncryptedSharedPreferences, certificate pinning, biometric auth, Play Integrity, WebView, obfuscation). Interview-ready depth for SDE3." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 280px minmax(0, 1fr);
+    gap: 28px; max-width: 1300px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+  .sidebar-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.7rem; margin: 14px 8px 4px; color: var(--fg-muted); }
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+  .diagram {
+    background: var(--code-bg); color: #e6edf3;
+    padding: 14px 16px; border-radius: 10px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre; margin: 10px 0 14px;
+    border: 1px solid var(--code-border);
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.92rem; }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+  .part-banner {
+    text-align: center; padding: 16px 18px; margin: 36px 0 22px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: white; border-radius: 10px; font-weight: 700; font-size: 1.15rem;
+    letter-spacing: 0.3px;
+  }
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    .part-banner { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, .diagram, table, .callout, .two-col { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Perf + Security · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Android Performance + Security</h1>
+  <div class="subtitle">Two interview-critical topics in one focused PDF · 2026 stack</div>
+  <div class="badges">
+    <span class="badge">Perf: cold start, Baseline Profiles, R8, frame timing, GC, ANR</span>
+    <span class="badge">Security: Keystore, cert pinning, biometric, Play Integrity</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> two distinct but related topics — performance and security are both about defending the user from your code. Performance defends them from waiting; security defends them from your bugs and from attackers. Same dense format as the other cheat sheets in this repo. Original prose, standard idiomatic patterns, interview-flavored.
+</section>
+
+<div class="part-banner">PART 1 — Android Performance Engineering</div>
+
+<!-- =============== 1. WHY PERF =============== -->
+<h2 id="p1">1. Why performance — what it costs to be slow</h2>
+
+<table>
+  <thead><tr><th>Metric</th><th>User impact</th><th>Business impact</th></tr></thead>
+  <tbody>
+    <tr><td>Cold start &gt; 1.5 s</td><td>Users perceive the app as broken</td><td>~10% drop in d1 retention per second over 1 s</td></tr>
+    <tr><td>ANRs</td><td>"App not responding" dialog → force quit</td><td>Play Console flags; can block Play Store updates</td></tr>
+    <tr><td>Dropped frames (jank)</td><td>Scroll feels choppy → users blame your app, not the device</td><td>1-star reviews; loss of premium feel</td></tr>
+    <tr><td>Battery drain</td><td>Phone hot, dies fast → uninstall</td><td>System highlights battery-hogging apps in Settings</td></tr>
+    <tr><td>OOM crashes</td><td>App vanishes mid-flow</td><td>Counted in Crash-Free Sessions metric</td></tr>
+  </tbody>
+</table>
+
+<p>Google's <strong>Android Vitals</strong> dashboard in Play Console tracks several of these. Cross thresholds and Play <em>literally hides your app from search results</em> in some categories. Performance isn't optional for shipping at scale.</p>
+
+<!-- =============== 2. PERF METRICS =============== -->
+<h2 id="p2">2. The metrics that matter (what to measure)</h2>
+
+<table>
+  <thead><tr><th>Metric</th><th>Target</th><th>Tool</th></tr></thead>
+  <tbody>
+    <tr><td>Cold start (TTID)</td><td>&lt; 500 ms cold; &lt; 200 ms warm</td><td>Macrobenchmark <code>StartupTimingMetric</code></td></tr>
+    <tr><td>Time to first draw (TTFD)</td><td>Ideally same as TTID; aggressive target ≤ 1 s</td><td>Macrobenchmark</td></tr>
+    <tr><td>Frame timing (60 Hz target)</td><td>p99 &lt; 16.6 ms; no dropped frames during scroll</td><td>Macrobenchmark <code>FrameTimingMetric</code> + Perfetto</td></tr>
+    <tr><td>Frame timing (120 Hz)</td><td>p99 &lt; 8.3 ms</td><td>Same; check device's actual refresh rate</td></tr>
+    <tr><td>ANR rate</td><td>&lt; 0.47% of daily users (Play threshold)</td><td>Play Console / Crashlytics</td></tr>
+    <tr><td>Crash-free sessions</td><td>≥ 99.5%</td><td>Play Console / Crashlytics</td></tr>
+    <tr><td>Heap memory</td><td>&lt; 1/2 device class limit</td><td>Profiler memory tab</td></tr>
+    <tr><td>APK / Bundle size</td><td>App Bundle &lt; 100 MB; install size &lt; 50 MB</td><td>Android Studio APK Analyzer</td></tr>
+    <tr><td>Battery</td><td>Baseline: app shouldn't appear in Settings → Battery top consumers</td><td>Battery Historian + Perfetto</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 3. COLD START =============== -->
+<h2 id="p3">3. Cold start — phases &amp; optimization</h2>
+
+<h3>The phases (in order)</h3>
+<div class="diagram">USER TAPS LAUNCHER ICON
+        │
+        ▼
+[1] System Server: pick the right app process
+        │
+        ▼
+[2] Zygote fork() → new process for your app
+        │  (very fast; copy-on-write)
+        ▼
+[3] ART process init: load classpath, link JNI
+        │
+        ▼
+[4] ContentProvider.onCreate (ALL providers in your manifest, sequentially)
+        │  ← App Startup library batches these
+        ▼
+[5] Application.onCreate
+        │
+        ▼
+[6] Activity.onCreate → setContent { ... }
+        │
+        ▼
+[7] First Compose / View measure + layout + draw
+        │
+        ▼
+[8] First frame submitted to display ← "Time To Initial Display" stops here</div>
+
+<h3>Where time goes (typical phone)</h3>
+<table>
+  <thead><tr><th>Phase</th><th>Typical cost</th><th>Where to optimize</th></tr></thead>
+  <tbody>
+    <tr><td>Process fork (Zygote)</td><td>~50 ms</td><td>Out of your control — Android handles it</td></tr>
+    <tr><td>ContentProvider init</td><td>50-300 ms (per provider)</td><td>App Startup library (consolidate)</td></tr>
+    <tr><td>Application.onCreate</td><td>0-500 ms (depends on what you do)</td><td>Defer non-essential SDK init; parallelize</td></tr>
+    <tr><td>Activity.onCreate + first frame</td><td>200-800 ms</td><td>Lighter UI, Baseline Profile, defer heavy widgets</td></tr>
+  </tbody>
+</table>
+
+<h3>The cold-start optimization checklist</h3>
+<ol>
+  <li><strong>Ship a Baseline Profile</strong> — single biggest win for Compose apps (20-40% improvement).</li>
+  <li><strong>Use the Splash Screen API</strong> (Android 12+) — covers the perceived gap with branded UI immediately.</li>
+  <li><strong>App Startup library</strong> — replaces N hidden ContentProviders from libraries with one ordered initializer chain.</li>
+  <li><strong>Move non-essential work out of Application.onCreate</strong>: analytics, push token registration, prefetch — defer to first idle or first user action.</li>
+  <li><strong>Lazy-init heavy singletons</strong>: <code>by lazy { ... }</code> for OkHttpClient, Database — created on first use.</li>
+  <li><strong>Parallel SDK init</strong> via <code>App Startup</code> dependencies graph; use a coroutine scope for I/O-bound init.</li>
+  <li><strong>R8 with shrinking</strong> — smaller bytecode = faster classloading.</li>
+  <li><strong>Avoid disk I/O in onCreate</strong> — DataStore, SharedPreferences are async; never block on them.</li>
+  <li><strong>Inflate less</strong> — for Compose, simpler initial layout; for Views, avoid deep hierarchies.</li>
+  <li><strong>Defer images</strong> — first frame doesn't need them; show placeholders, decode async.</li>
+</ol>
+
+<!-- =============== 4. BASELINE PROFILES =============== -->
+<h2 id="p4">4. Baseline Profiles — the single biggest perf win</h2>
+
+<p>A Baseline Profile is a list of "hot" methods (your startup paths and key user flows) that ART pre-AOT-compiles at install time. Skips JIT warm-up. Typical wins: cold start 20-40%, scroll jank 30-50% on covered flows. <strong>Compose apps benefit most</strong> — Compose runtime is method-heavy and JIT-warmup-prone.</p>
+
+<h3>Generate one</h3>
+<pre><code><span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> StartupBaselineProfile {
+    <span class="anno">@get:Rule val</span> rule = BaselineProfileRule()
+
+    <span class="anno">@Test fun</span> generate() = rule.collect(packageName = <span class="str">"com.app"</span>) {
+        startActivityAndWait()
+        device.findObject(By.text(<span class="str">"Open Feed"</span>)).click()
+        device.wait(Until.hasObject(By.text(<span class="str">"Item 5"</span>)), <span class="num">5_000</span>)
+        device.findObject(By.res(<span class="str">"feed"</span>)).fling(Direction.DOWN)
+    }
+}</code></pre>
+
+<p>Run on a physical device. Output: <code>baseline-prof.txt</code> shipped in your APK.</p>
+
+<h3>How to verify it's working</h3>
+<ul>
+  <li>Run a Macrobenchmark with <code>StartupTimingMetric</code> twice — once with profile, once with <code>baselineProfile = false</code>. Compare.</li>
+  <li>Check the APK contains <code>assets/dexopt/baseline.prof</code> (use APK Analyzer).</li>
+  <li>Track Android Vitals after release; cold-start histogram should shift left.</li>
+</ul>
+
+<div class="callout"><strong>Tip:</strong> Play Console aggregates user profiles into a "Cloud Profile" automatically — but it takes weeks of usage. Ship your own Baseline Profile so day-1 users get fast starts.</div>
+
+<!-- =============== 5. R8 =============== -->
+<h2 id="p5">5. R8 — shrink, optimize, obfuscate</h2>
+
+<p>R8 is Android's official code shrinker (replaces ProGuard since AGP 3.4). Three passes per release build:</p>
+
+<ol>
+  <li><strong>Shrink</strong> — tree-shake from <code>-keep</code> roots; remove unreachable classes/methods/fields.</li>
+  <li><strong>Optimize</strong> — inline single-use methods, propagate constants, devirtualize calls (single-impl interfaces become direct calls), eliminate dead branches.</li>
+  <li><strong>Obfuscate</strong> — rename remaining classes/methods to short names (<code>com.app.repository.User</code> → <code>a.b.c</code>).</li>
+</ol>
+
+<p>Result: 30-60% APK size reduction; faster classloading; smaller methods table.</p>
+
+<h3>Enable</h3>
+<pre><code>android {
+    buildTypes {
+        release {
+            isMinifyEnabled = <span class="kw">true</span>
+            isShrinkResources = <span class="kw">true</span>
+            proguardFiles(
+                getDefaultProguardFile(<span class="str">"proguard-android-optimize.txt"</span>),
+                <span class="str">"proguard-rules.pro"</span>
+            )
+        }
+    }
+}</code></pre>
+
+<h3>The <code>-keep</code> rules you actually need</h3>
+<pre><code><span class="com"># Reflection-based code R8 can't see used:</span>
+-keep <span class="kw">class</span> com.app.dto.** { *; }              <span class="com"># JSON DTOs (Gson/Moshi reflection)</span>
+
+<span class="com"># Keep enum values (R8 strips them by default):</span>
+-keepclassmembers <span class="kw">enum</span> * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+<span class="com"># Keep classes with @Keep annotation</span>
+-keep @androidx.annotation.Keep <span class="kw">class</span> *
+-keepclassmembers <span class="kw">class</span> * {
+    @androidx.annotation.Keep *;
+}
+
+<span class="com"># Annotations stay (R8 might strip otherwise):</span>
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses</code></pre>
+
+<div class="callout warn"><strong>Common bug:</strong> reflection-based libraries (Gson, Moshi reflective, raw Retrofit annotations) silently break under R8 if you forget <code>-keep</code>. Always test the release build before shipping. Modern alternative: KSP-based serialization (kotlinx.serialization, Moshi-codegen) needs zero rules.</div>
+
+<h3>Upload <code>mapping.txt</code> to Play Console</h3>
+<p>R8 obfuscation makes stack traces unreadable. Upload <code>build/outputs/mapping/release/mapping.txt</code> to Play (Bundle Explorer → Deobfuscation files) — Play automatically deobfuscates crash traces. Same with Crashlytics.</p>
+
+<!-- =============== 6. FRAME TIMING =============== -->
+<h2 id="p6">6. Frame timing &amp; jank — how Android renders frames</h2>
+
+<h3>The frame loop (Choreographer + VSYNC)</h3>
+<p>The display sends VSYNC every <strong>16.67 ms (60 Hz)</strong> or <strong>8.33 ms (120 Hz)</strong>. Each VSYNC, Android's <code>Choreographer</code> dispatches three callbacks on the main thread — input → animation → traversal (measure + layout + draw). Anything that overruns the budget → dropped frame → user sees stutter.</p>
+
+<div class="diagram">VSYNC ──┬─────────┬─────────┬─────────┬─────────▶ time
+         │         │         │         │
+         │   Frame budget = 16.6 ms (60 Hz)
+         ▼
+   Choreographer dispatches:
+     1. input events (touch, keys)
+     2. animations (Animator + Compose recomposition)
+     3. traversal (measure → layout → draw)
+
+   ↓ submit display list to RenderThread
+   ↓ RenderThread → GPU
+   ↓ Surface flinger composites + presents at next VSYNC</div>
+
+<h3>What causes jank</h3>
+<table>
+  <thead><tr><th>Cause</th><th>Symptom</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Main-thread blocking I/O</td><td>Stutter, possibly ANR</td><td><code>withContext(Dispatchers.IO)</code></td></tr>
+    <tr><td>Large bitmap decode in onDraw</td><td>Scroll stutter on image-heavy lists</td><td>Decode async; use Coil/Glide; downsample at decode</td></tr>
+    <tr><td>Allocations in scroll loop</td><td>GC pauses every few seconds</td><td>Object pools, avoid lambda allocations, primitive State</td></tr>
+    <tr><td>Compose recomposition cascades</td><td>"Show recomposition counts" climbs absurdly</td><td>Stable parameters, defer State reads (see Compose cheat sheet)</td></tr>
+    <tr><td>Deep view hierarchies</td><td>Slow measure pass</td><td>ConstraintLayout, flat trees, Compose</td></tr>
+    <tr><td>Inflating layouts in onBindViewHolder</td><td>Scroll stutter on RecyclerView</td><td>One inflate per ViewType; mutate in onBind</td></tr>
+    <tr><td>Wide-color-gamut shaders</td><td>Render-thread time spikes on hi-end devices</td><td>Profile via Perfetto; simplify shaders</td></tr>
+  </tbody>
+</table>
+
+<h3>How to measure</h3>
+<pre><code><span class="anno">@Test fun</span> scrollPerf() = benchmarkRule.measureRepeated(
+    packageName = <span class="str">"com.app"</span>,
+    metrics = listOf(FrameTimingMetric()),
+    iterations = <span class="num">5</span>,
+    startupMode = StartupMode.WARM
+) {
+    pressHome(); startActivityAndWait()
+    device.findObject(By.res(<span class="str">"feed"</span>)).fling(Direction.DOWN)
+}
+<span class="com">// Output: frameDurationCpuMs (p50, p90, p99) — keep p99 under your refresh budget</span></code></pre>
+
+<!-- =============== 7. MEMORY & GC =============== -->
+<h2 id="p7">7. Memory &amp; GC — heap, native, leaks</h2>
+
+<h3>The Android memory model</h3>
+<table>
+  <thead><tr><th>Memory region</th><th>What lives there</th><th>Limit</th></tr></thead>
+  <tbody>
+    <tr><td>Java heap</td><td>Kotlin/Java objects</td><td>Per-app cap (typically 256-768 MB by device class). <code>android:largeHeap</code> bumps it but is a smell.</td></tr>
+    <tr><td>Native heap</td><td>JNI allocations, Bitmap pixels (Android 8+), some Compose data</td><td>Bounded by overall device memory, not by Java heap cap</td></tr>
+    <tr><td>Stack</td><td>Per-thread frames + locals</td><td>~1 MB per thread</td></tr>
+    <tr><td>Code cache (ART)</td><td>JIT-compiled methods</td><td>Bounded by ART config</td></tr>
+    <tr><td>Graphics memory (GPU)</td><td>Hardware Bitmap pixels, surfaces</td><td>Bounded by device GPU memory</td></tr>
+  </tbody>
+</table>
+
+<h3>Android Concurrent Copying GC (ART, Android 8+)</h3>
+<ul>
+  <li>Generational + concurrent — most GC happens on a separate thread</li>
+  <li>Stop-the-world pauses typically 1-5 ms (vs old Dalvik's 100+ ms)</li>
+  <li>Copying collector eliminates fragmentation by moving live objects to a fresh region</li>
+  <li>You still feel it during sustained allocation pressure (image-heavy scroll, animation)</li>
+</ul>
+
+<h3>How to be GC-friendly</h3>
+<ul>
+  <li>Avoid allocations in tight loops (scroll callbacks, onDraw, recomposition)</li>
+  <li>Use object pools — BitmapPool (Glide/Coil), ViewHolder pool (RecyclerView)</li>
+  <li>Prefer primitive arrays (<code>IntArray</code>) over <code>List&lt;Int&gt;</code> in hot paths</li>
+  <li>Reuse <code>StringBuilder</code>; avoid string concatenation in loops</li>
+  <li>Use Compose primitive State (<code>mutableIntStateOf</code>) over boxed (<code>mutableStateOf(0)</code>)</li>
+  <li>Use <code>SparseArray</code>, <code>ArrayMap</code>, <code>ArraySet</code> for small collections (less per-entry overhead than HashMap)</li>
+</ul>
+
+<h3>Memory leaks — the killer</h3>
+<p>An object outlives its scope, holding references that prevent GC. The classic Android leaks:</p>
+<ul>
+  <li>Static reference to Context / Activity</li>
+  <li>Inner non-static class holding outer (Activity)</li>
+  <li>Handler with delayed messages keeping Activity alive</li>
+  <li>Coroutine launched from non-lifecycle scope (<code>GlobalScope</code>)</li>
+  <li>Long-lived listener registered without being unregistered</li>
+  <li>RxJava Disposable not disposed</li>
+</ul>
+
+<p><strong>Tool: LeakCanary.</strong> Auto-detects retained Activity/Fragment/ViewModel instances in debug builds. Free, drop-in, mandatory.</p>
+
+<!-- =============== 8. BITMAP MEMORY =============== -->
+<h2 id="p8">8. Bitmap memory — the biggest waste in image apps</h2>
+
+<table>
+  <thead><tr><th>Config</th><th>Bytes per pixel</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>ARGB_8888</code></td><td>4</td><td>Default. Full color + alpha.</td></tr>
+    <tr><td><code>RGB_565</code></td><td>2</td><td>16-bit color, no alpha. Banding visible. Rare in 2026.</td></tr>
+    <tr><td><code>HARDWARE</code> (API 26+)</td><td>~0 in Java heap</td><td>Pixels in GPU memory; can't read pixels on CPU. Default for image libraries.</td></tr>
+    <tr><td><code>ALPHA_8</code></td><td>1</td><td>Single-channel; for masks.</td></tr>
+  </tbody>
+</table>
+
+<h3>Math: a 4K image (3840×2160)</h3>
+<ul>
+  <li>ARGB_8888 = <strong>33 MB</strong> per bitmap</li>
+  <li>Decoded full-size into a 200×200 ImageView = 32 MB wasted</li>
+  <li>Solution: <code>BitmapFactory.Options.inSampleSize = 8</code> → decoded as 480×270 = 0.5 MB</li>
+</ul>
+
+<h3>Image library best practice</h3>
+<pre><code><span class="com">// Coil — automatically downsamples to target view size</span>
+AsyncImage(
+    model = url,
+    contentDescription = <span class="kw">null</span>,
+    modifier = Modifier.size(<span class="num">240</span>.dp)        <span class="com">// Coil decodes to ~240dp resolution</span>
+)
+<span class="com">// Result: ~0.2 MB per visible thumbnail vs 33 MB raw decode.</span></code></pre>
+
+<h3>Hardware bitmaps</h3>
+<p>Stored in GPU memory. Don't count toward Java heap. Drawn faster (no upload-to-GPU per draw). Trade-off: <em>can't read pixels</em> on CPU — copy/transform requires <code>bitmap.copy(ARGB_8888, isMutable = false)</code> first. Coil/Glide use HARDWARE by default on API 26+.</p>
+
+<!-- =============== 9. BATTERY =============== -->
+<h2 id="p9">9. Battery optimization</h2>
+
+<h3>What costs battery</h3>
+<table>
+  <thead><tr><th>Activity</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td>Cellular radio active (any data)</td><td>High — radio stays on for ~20 s "tail energy" after each request</td></tr>
+    <tr><td>GPS / fused location</td><td>Very high (PRIORITY_HIGH_ACCURACY = full GPS)</td></tr>
+    <tr><td>Wi-Fi scan / cellular scan</td><td>High</td></tr>
+    <tr><td>Wakelocks</td><td>Whatever was running drains baseline + work cost</td></tr>
+    <tr><td>Background Bluetooth scanning</td><td>Significant; restricted on Android 8+</td></tr>
+    <tr><td>Foreground Service</td><td>Whatever it does; survives Doze (privilege)</td></tr>
+    <tr><td>JIT compilation churn</td><td>CPU spikes on cold start (Baseline Profile mitigates)</td></tr>
+  </tbody>
+</table>
+
+<h3>The big rules</h3>
+<ol>
+  <li><strong>Batch network calls.</strong> Don't ping at random; coalesce + use HTTP/2 connection reuse.</li>
+  <li><strong>Use WorkManager constraints</strong>: <code>NetworkType.UNMETERED</code>, <code>BatteryNotLow</code>, <code>RequiresCharging</code>.</li>
+  <li><strong>Location: pick the right priority</strong>. <code>BALANCED_POWER_ACCURACY</code> for most, <code>HIGH_ACCURACY</code> only when actively navigating.</li>
+  <li><strong>Stop sensors in onPause</strong>; never leak listeners.</li>
+  <li><strong>Avoid wakelocks</strong>; if needed, hold for shortest possible window.</li>
+  <li><strong>Use FCM data messages</strong> instead of polling for "did the server change?"</li>
+  <li><strong>Defer non-essential sync to charging time.</strong></li>
+</ol>
+
+<h3>Doze, App Standby, Restricted bucket</h3>
+<table>
+  <thead><tr><th>State</th><th>Triggered by</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td>Doze</td><td>Device unplugged + screen off + stationary</td><td>Network deferred, alarms throttled, jobs deferred — until maintenance window</td></tr>
+    <tr><td>App Standby</td><td>App not used by user for days</td><td>Network access restricted; jobs throttled. Bucket: Active / Working set / Frequent / Rare / Restricted</td></tr>
+    <tr><td>Background restrictions (Android 9+)</td><td>User toggles via Settings, OR system auto-restricts heavy apps</td><td>App treated as Restricted bucket all the time</td></tr>
+  </tbody>
+</table>
+
+<p>Design for these — they're not optional. WorkManager handles all of this automatically when you use constraints.</p>
+
+<h3>Tools</h3>
+<ul>
+  <li><strong>Battery Historian</strong> — visualizes a Perfetto trace; shows wakelocks, network use, GPS sessions</li>
+  <li><strong>Android Studio Energy Profiler</strong> — live energy use during a session</li>
+  <li><strong>Play Console: Excessive Wakelocks</strong> + <strong>Excessive Network Usage</strong> dashboards — vitals</li>
+</ul>
+
+<!-- =============== 10. NETWORK =============== -->
+<h2 id="p10">10. Network optimization</h2>
+
+<ol>
+  <li><strong>Single shared OkHttpClient</strong> — preserves connection pool + cache. Each <code>OkHttpClient.Builder().build()</code> creates a new pool.</li>
+  <li><strong>HTTP/2 by default</strong> — OkHttp negotiates over TLS automatically. One TCP connection multiplexes many streams.</li>
+  <li><strong>Connection pool</strong>: default keeps 5 idle connections for 5 min. Tune up if you hit many hosts.</li>
+  <li><strong>HTTP cache</strong> — let OkHttp cache GET responses; respect server's <code>Cache-Control</code> + <code>ETag</code>.</li>
+  <li><strong>Batch requests</strong> when possible (GraphQL, custom batch endpoint).</li>
+  <li><strong>Compression</strong>: OkHttp adds <code>Accept-Encoding: gzip</code> automatically; enable Brotli on server for ~20% additional savings.</li>
+  <li><strong>Pre-fetch on Wi-Fi</strong> when you have predictable next requests (next page of feed, next image).</li>
+  <li><strong>Avoid pre-flight CORS-equivalent overhead</strong> (mostly server-side concern, but simple endpoints help).</li>
+  <li><strong>QUIC / HTTP/3</strong> via Cronet for lossy mobile networks (10-20% TTFB improvement on 4G).</li>
+</ol>
+
+<!-- =============== 11. APP STARTUP LIBRARY =============== -->
+<h2 id="p11">11. App Startup library — consolidate ContentProvider init</h2>
+
+<p>Many SDKs auto-initialize via a hidden <code>ContentProvider</code> in their manifest (Firebase, WorkManager, others). Each adds startup cost. App Startup library replaces them all with ONE provider that runs an ordered initializer chain.</p>
+
+<pre><code><span class="com">// Manifest entry — opt out of a library's auto-init</span>
+&lt;provider
+    android:name=<span class="str">"androidx.startup.InitializationProvider"</span>
+    android:authorities=<span class="str">"${applicationId}.androidx-startup"</span>
+    tools:node=<span class="str">"merge"</span>&gt;
+    &lt;meta-data android:name=<span class="str">"com.example.MyInitializer"</span> android:value=<span class="str">"androidx.startup"</span> /&gt;
+&lt;/provider&gt;
+
+<span class="com">// Your initializer</span>
+<span class="kw">class</span> MyInitializer : Initializer&lt;MyLib&gt; {
+    <span class="kw">override fun</span> create(ctx: Context): MyLib = MyLib.init(ctx)
+    <span class="kw">override fun</span> dependencies() = emptyList&lt;Class&lt;<span class="kw">out</span> Initializer&lt;*&gt;&gt;&gt;()
+}</code></pre>
+
+<p>Why it matters: <code>Application.onCreate</code> is on the cold-start critical path; every ContentProvider runs <em>before</em> it. Reducing N providers to 1 cuts ~100+ ms typical.</p>
+
+<!-- =============== 12. ANR =============== -->
+<h2 id="p12">12. ANR — what triggers it &amp; how to prevent</h2>
+
+<h3>What triggers ANR</h3>
+<ul>
+  <li>Main thread blocked &gt; 5 s while user is interacting (touch, key)</li>
+  <li>BroadcastReceiver doesn't return from <code>onReceive</code> in 10 s (foreground) / 60 s (background)</li>
+  <li>Service doesn't return in time (20 s for foreground)</li>
+  <li>JobService / WorkManager exceeds 10 min wall clock without setForeground</li>
+</ul>
+
+<h3>The killer is always one of these</h3>
+<ol>
+  <li>Synchronous DB query / file read on main thread</li>
+  <li>Synchronous network call</li>
+  <li>Large JSON parsing (~100 KB+ Gson reflection on main)</li>
+  <li>Image decode without downsampling</li>
+  <li>Deadlocks in coroutines / Mutex</li>
+  <li>Choreographer doing too much per frame (deep View hierarchies, complex Compose modifiers)</li>
+</ol>
+
+<h3>Prevention</h3>
+<ul>
+  <li><strong>StrictMode</strong> in debug — catches main-thread disk + network access; will crash dev builds, surface bugs early</li>
+  <li><strong>Always <code>withContext(Dispatchers.IO)</code></strong> for any blocking I/O</li>
+  <li><strong>Profile release builds with Macrobenchmark</strong>; ANRs are quietly logged in Play Console</li>
+  <li><strong>Watchdog ANR detection</strong> in your own code (post a heartbeat to main; if not echoed in 5 s, capture all thread stacks for telemetry)</li>
+  <li><strong>Use Coroutines instead of Threads</strong> — much harder to deadlock with structured concurrency</li>
+</ul>
+
+<!-- =============== 13. COMPOSE PERF =============== -->
+<h2 id="p13">13. Compose-specific performance</h2>
+
+<p>Compose has its own performance discipline. Quick reference (full treatment in the Compose cheat sheet):</p>
+<ul>
+  <li><strong>Stable parameters</strong> — <code>ImmutableList</code> over <code>List</code>, <code>@Immutable</code> on data classes</li>
+  <li><strong>Defer State reads to lower phases</strong> — <code>Modifier.offset { value }</code> reads in Layout; <code>graphicsLayer { rotationZ = v }</code> reads in Drawing</li>
+  <li><strong>Stable list keys</strong> — entity ID, never index</li>
+  <li><strong>Memoize lambdas</strong> with stable captures — the compiler usually does this for you</li>
+  <li><strong>Avoid passing <code>State&lt;T&gt;</code> as parameter</strong> — read at caller, pass value</li>
+  <li><strong>Compose Compiler reports</strong> are the ground truth — every Composable taking parameters should be <code>skippable</code></li>
+  <li><strong>Layout Inspector recomposition counts</strong> — interactively find recomp hotspots</li>
+</ul>
+
+<!-- =============== 14. PROFILING =============== -->
+<h2 id="p14">14. Profiling tools — what each is for</h2>
+
+<table>
+  <thead><tr><th>Tool</th><th>When to use</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Android Studio Profiler</strong></td><td>Live CPU / memory / energy / network during interactive session. Best for "what's allocating right now"</td></tr>
+    <tr><td><strong>Macrobenchmark</strong></td><td>Reproducible end-to-end perf measurements on release builds. CI-friendly. Use for cold start, scroll, custom flows.</td></tr>
+    <tr><td><strong>Perfetto / Systrace</strong></td><td>Low-level kernel + user-space trace. Best for understanding scheduling, frame timing internals, cross-thread contention.</td></tr>
+    <tr><td><strong>Layout Inspector</strong></td><td>Live View hierarchy + Compose recomposition counts. Best for "why is this recomposing".</td></tr>
+    <tr><td><strong>Database Inspector</strong></td><td>Live Room queries; check for N+1 queries, slow JOINs.</td></tr>
+    <tr><td><strong>Network Inspector</strong></td><td>OkHttp request/response timeline. Best for "is my caching working" / "are headers right"</td></tr>
+    <tr><td><strong>LeakCanary</strong></td><td>Auto-detect retained Activity/ViewModel/Fragment instances in debug.</td></tr>
+    <tr><td><strong>Compose Compiler reports</strong></td><td>Per-Composable skippable / restartable status. Static analysis of stability.</td></tr>
+    <tr><td><strong>APK Analyzer</strong></td><td>What's bloating my APK? Per-DEX class size, resource size, native libs.</td></tr>
+    <tr><td><strong>Play Console Vitals</strong></td><td>Real-user metrics. The truth about whether your app is fast for actual users.</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 15. PERF CHECKLIST =============== -->
+<h2 id="p15">15. Performance shipping checklist</h2>
+
+<div class="two-col">
+  <div class="col-card good"><strong>Before every release</strong>
+    <ul>
+      <li>R8 minification + resource shrinking enabled</li>
+      <li>Baseline Profile generated and shipped in APK</li>
+      <li>Splash Screen API integrated (Android 12+)</li>
+      <li>App Startup library consolidates SDK init</li>
+      <li>App Bundle (.aab) ships, not APK</li>
+      <li>WebP / AVIF for raster images; VectorDrawable for icons</li>
+      <li>WorkManager constraints on all background sync</li>
+      <li>Macrobenchmark cold-start &amp; scroll tests pass thresholds</li>
+      <li>LeakCanary clean in debug</li>
+      <li>Compose Compiler reports show 90%+ skippable</li>
+      <li>Compose stability metrics archived for diff next release</li>
+      <li>Mapping.txt uploaded to Crashlytics + Play</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Common mistakes</strong>
+    <ul>
+      <li>Profiling debug builds (misleading)</li>
+      <li>Heavy SDK init in Application.onCreate</li>
+      <li>One ViewModel per leaf Composable</li>
+      <li><code>List&lt;T&gt;</code> as Composable parameters (unstable)</li>
+      <li>Reading <code>scrollState.value</code> in Composition</li>
+      <li>HARDWARE bitmap copied to ARGB_8888 unintentionally (CPU read)</li>
+      <li>Animating with <code>Modifier.rotate</code> instead of <code>graphicsLayer</code></li>
+      <li>Using <code>android:largeHeap</code> instead of fixing the leak</li>
+      <li>GlobalScope coroutines (no cancellation, no scoping)</li>
+      <li>Inflate-in-onBindViewHolder anti-pattern</li>
+    </ul>
+  </div>
+</div>
+
+<div class="part-banner">PART 2 — Android Security</div>
+
+<!-- =============== 16. THREAT MODEL =============== -->
+<h2 id="s1">16. Threat model — what you're defending against</h2>
+
+<table>
+  <thead><tr><th>Threat</th><th>What it looks like</th><th>Primary defense</th></tr></thead>
+  <tbody>
+    <tr><td>Token / credential theft from device</td><td>Rooted phone, malware reading shared storage</td><td>Keystore-backed encryption + EncryptedSharedPreferences</td></tr>
+    <tr><td>Man-in-the-middle (MITM) on network</td><td>Hostile Wi-Fi, untrusted CA installed</td><td>Certificate pinning + Network Security Config</td></tr>
+    <tr><td>Unauthorized API access</td><td>Reverse-engineered app + replayed requests</td><td>Server-side auth + Play Integrity API</td></tr>
+    <tr><td>Reverse engineering of business logic</td><td>APK extraction, decompilation</td><td>R8 obfuscation + native code for sensitive logic</td></tr>
+    <tr><td>Tampered APK</td><td>Sideloaded modified APK</td><td>Play App Signing + Play Integrity</td></tr>
+    <tr><td>Insecure data sharing with other apps</td><td>Implicit intents leaking PII</td><td>FileProvider + explicit intents + signature permissions</td></tr>
+    <tr><td>Phishing via deep links</td><td>Malicious app catches your <code>myapp://</code> link</td><td>App Links with <code>autoVerify</code> + assetlinks.json</td></tr>
+    <tr><td>WebView XSS</td><td>JavaScript bridge abuse</td><td>Disable JS unless needed; lock <code>JavascriptInterface</code> tightly</td></tr>
+  </tbody>
+</table>
+
+<p>Security is layered defense. None of these alone is enough — chain them.</p>
+
+<!-- =============== 17. KEYSTORE =============== -->
+<h2 id="s2">17. Android Keystore — the foundation</h2>
+
+<p>The Android Keystore is a system service that generates, stores, and uses cryptographic keys. On capable devices, keys are hardware-backed via the TEE (Trusted Execution Environment) or StrongBox — meaning they <strong>cannot be exfiltrated</strong> even on a rooted device.</p>
+
+<h3>Generate a key</h3>
+<pre><code><span class="kw">val</span> spec = KeyGenParameterSpec.Builder(<span class="str">"my_key_alias"</span>,
+        KeyProperties.PURPOSE_ENCRYPT <span class="kw">or</span> KeyProperties.PURPOSE_DECRYPT)
+    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+    .setKeySize(<span class="num">256</span>)
+    .setUserAuthenticationRequired(<span class="kw">false</span>)         <span class="com">// or true for biometric-gated key</span>
+    .setIsStrongBoxBacked(<span class="kw">true</span>)                    <span class="com">// hardware-backed if available</span>
+    .build()
+
+<span class="kw">val</span> generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,
+                                          <span class="str">"AndroidKeyStore"</span>)
+generator.init(spec)
+generator.generateKey()</code></pre>
+
+<h3>Encrypt with the key</h3>
+<pre><code><span class="kw">val</span> ks = KeyStore.getInstance(<span class="str">"AndroidKeyStore"</span>).apply { load(<span class="kw">null</span>) }
+<span class="kw">val</span> key = ks.getKey(<span class="str">"my_key_alias"</span>, <span class="kw">null</span>) <span class="kw">as</span> SecretKey
+
+<span class="kw">val</span> cipher = Cipher.getInstance(<span class="str">"AES/GCM/NoPadding"</span>)
+cipher.init(Cipher.ENCRYPT_MODE, key)
+<span class="kw">val</span> iv = cipher.iv
+<span class="kw">val</span> ciphertext = cipher.doFinal(plaintext)
+<span class="com">// Persist (iv, ciphertext); decrypt later with same key + iv</span></code></pre>
+
+<h3>Key features</h3>
+<ul>
+  <li>Keys are referenced by <strong>alias</strong>; the key bytes never enter your process memory on hardware-backed devices</li>
+  <li>Set <code>setUserAuthenticationRequired(true)</code> to require biometric/PIN before the key can be used — gates sensitive operations</li>
+  <li>StrongBox (API 28+, Pixel 3+) gives an extra hardware tier — defends against TEE compromise</li>
+  <li>Keys can be <strong>attested</strong> — server can verify the key really lives in TEE/StrongBox via remote attestation</li>
+</ul>
+
+<!-- =============== 18. ENCRYPTED PREFS / FILE =============== -->
+<h2 id="s3">18. Storing secrets — EncryptedSharedPreferences &amp; alternatives</h2>
+
+<p>Most apps need to persist a few sensitive blobs (refresh tokens, encrypted credentials, OAuth state). Don't put these in plain SharedPreferences.</p>
+
+<h3>EncryptedSharedPreferences (Jetpack Security — but in 2026, deprecated for new code)</h3>
+<pre><code><span class="kw">val</span> mainKey = MasterKey.Builder(ctx)
+    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+    .build()
+
+<span class="kw">val</span> prefs = EncryptedSharedPreferences.create(
+    ctx, <span class="str">"secure_prefs"</span>, mainKey,
+    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+)
+prefs.edit().putString(<span class="str">"refresh_token"</span>, token).apply()</code></pre>
+
+<div class="callout warn"><strong>2026 status:</strong> Jetpack Security (which provides <code>EncryptedSharedPreferences</code> and <code>EncryptedFile</code>) was <strong>deprecated in 2024</strong> with no direct replacement. Existing usage still works. Long-term, prefer <strong>DataStore + your own Keystore-backed encryption</strong>, or <strong>Google Tink</strong> (which underlies Jetpack Security anyway).</div>
+
+<h3>Recommended modern approach: DataStore + manual Keystore-backed encryption</h3>
+<pre><code><span class="kw">class</span> SecureDataStore(<span class="kw">val</span> ctx: Context) {
+    <span class="kw">private val</span> dataStore = ctx.preferencesDataStore(<span class="str">"secure"</span>)
+    <span class="kw">private val</span> crypto = KeystoreAesGcm(<span class="str">"app_data_key"</span>)
+
+    <span class="kw">suspend fun</span> putString(key: String, value: String) {
+        <span class="kw">val</span> encrypted = crypto.encrypt(value.toByteArray())
+        dataStore.edit { it[stringPreferencesKey(key)] = Base64.encode(encrypted) }
+    }
+
+    <span class="kw">suspend fun</span> getString(key: String): String? {
+        <span class="kw">val</span> encoded = dataStore.data.first()[stringPreferencesKey(key)] ?: <span class="kw">return null</span>
+        <span class="kw">return</span> crypto.decrypt(Base64.decode(encoded)).toString(Charsets.UTF_8)
+    }
+}</code></pre>
+
+<h3>For full-file encryption</h3>
+<p><code>EncryptedFile</code> still works (deprecated alongside ESP). Modern alternative: encrypt with Keystore-backed AES-GCM yourself, write ciphertext via <code>OutputStream</code>.</p>
+
+<h3>Common mistakes</h3>
+<ul>
+  <li><strong>API keys in BuildConfig</strong> — trivially extractable from APK. Move to a backend gateway; client never sees them.</li>
+  <li><strong>Hardcoded encryption keys</strong> in code/strings — same as plaintext. Always use Keystore.</li>
+  <li><strong>Storing PINs / passwords</strong> — never; store a <strong>hash</strong> (Argon2id) for verification only.</li>
+  <li><strong>Logging tokens</strong> — Logcat persists; tokens leak via bug reports. Strip in proguard or use a logging framework with redaction.</li>
+</ul>
+
+<!-- =============== 19. NETWORK SECURITY =============== -->
+<h2 id="s4">19. Network Security Config — TLS, cleartext, trust anchors</h2>
+
+<p>An XML file in your app that controls how Android validates HTTPS connections, what cleartext is allowed, which CAs are trusted.</p>
+
+<pre><code><span class="com">&lt;!-- res/xml/network_security_config.xml --&gt;</span>
+&lt;network-security-config&gt;
+    &lt;base-config cleartextTrafficPermitted=<span class="str">"false"</span>&gt;
+        &lt;trust-anchors&gt;
+            &lt;certificates src=<span class="str">"system"</span> /&gt;
+            <span class="com">&lt;!-- DO NOT include user CAs in production --&gt;</span>
+        &lt;/trust-anchors&gt;
+    &lt;/base-config&gt;
+
+    <span class="com">&lt;!-- Pin specific domains --&gt;</span>
+    &lt;domain-config&gt;
+        &lt;domain includeSubdomains=<span class="str">"true"</span>&gt;api.example.com&lt;/domain&gt;
+        &lt;pin-set expiration=<span class="str">"2026-12-31"</span>&gt;
+            &lt;pin digest=<span class="str">"SHA-256"</span>&gt;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=&lt;/pin&gt;
+            &lt;pin digest=<span class="str">"SHA-256"</span>&gt;BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=&lt;/pin&gt; <span class="com">&lt;!-- backup --&gt;</span>
+        &lt;/pin-set&gt;
+    &lt;/domain-config&gt;
+
+    <span class="com">&lt;!-- Allow cleartext only for debug builds (use a debug-overrides config) --&gt;</span>
+    &lt;debug-overrides&gt;
+        &lt;trust-anchors&gt;
+            &lt;certificates src=<span class="str">"user"</span> /&gt;
+            <span class="com">&lt;!-- Charles/Proxyman cert can intercept HTTPS in debug only --&gt;</span>
+        &lt;/trust-anchors&gt;
+    &lt;/debug-overrides&gt;
+&lt;/network-security-config&gt;</code></pre>
+
+<p>Apply via manifest: <code>android:networkSecurityConfig="@xml/network_security_config"</code>.</p>
+
+<h3>What this defends against</h3>
+<ul>
+  <li><strong>cleartextTrafficPermitted=false</strong> — accidental HTTP usage will fail (forces HTTPS for all calls)</li>
+  <li><strong>Excluding <code>user</code> trust anchors in prod</strong> — malicious user-installed CAs (sometimes installed by enterprise MDM, sometimes by malware) can't intercept your TLS</li>
+  <li><strong>Pin-set</strong> — even a real CA being compromised can't make a hostile cert your app trusts</li>
+</ul>
+
+<!-- =============== 20. CERTIFICATE PINNING =============== -->
+<h2 id="s5">20. Certificate pinning — the deeper alternative to NSC pinning</h2>
+
+<p>NSC pinning above works at the system level. OkHttp's <code>CertificatePinner</code> works at the library level — same effect, more programmatic control:</p>
+
+<pre><code><span class="kw">val</span> pinner = CertificatePinner.Builder()
+    .add(<span class="str">"api.example.com"</span>, <span class="str">"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="</span>)
+    .add(<span class="str">"api.example.com"</span>, <span class="str">"sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="</span>)   <span class="com">// backup</span>
+    .build()
+
+<span class="kw">val</span> client = OkHttpClient.Builder().certificatePinner(pinner).build()</code></pre>
+
+<h3>Critical: ALWAYS ship at least one backup pin</h3>
+<p>If your prod cert rotates and you forgot to ship an update, the app breaks for users — they can't reach your API. Backup pins for the next-issued cert (or its intermediate) are insurance.</p>
+
+<h3>Plan for cert lifecycle</h3>
+<ul>
+  <li>Pin both <strong>leaf + intermediate</strong>, OR pin to your CA's intermediate (less rotation churn)</li>
+  <li>Maintain a <strong>remote killswitch</strong> — server-side flag that disables pinning if shipped pins are wrong</li>
+  <li>Monitor pin failures via analytics — sudden spike = your cert rotated and you didn't update the app</li>
+</ul>
+
+<h3>How to extract a pin</h3>
+<pre><code><span class="com"># Get cert from server</span>
+openssl s_client -servername api.example.com -connect api.example.com:443 \
+  | openssl x509 -pubkey -noout \
+  | openssl pkey -pubin -outform der \
+  | openssl dgst -sha256 -binary \
+  | openssl enc -base64</code></pre>
+
+<!-- =============== 21. BIOMETRIC =============== -->
+<h2 id="s6">21. Biometric authentication</h2>
+
+<p>Use the Jetpack <code>BiometricPrompt</code> API. Two modes: device-credential (PIN/pattern fallback OK) and biometric-only. Bind sensitive operations to authentication via a Keystore key with <code>setUserAuthenticationRequired(true)</code>.</p>
+
+<h3>Simple biometric prompt</h3>
+<pre><code><span class="kw">val</span> prompt = BiometricPrompt(activity, executor,
+    <span class="kw">object</span> : BiometricPrompt.AuthenticationCallback() {
+        <span class="kw">override fun</span> onAuthenticationSucceeded(r: BiometricPrompt.AuthenticationResult) {
+            unlockUserData()
+        }
+        <span class="kw">override fun</span> onAuthenticationError(code: Int, msg: CharSequence) { ... }
+    })
+
+<span class="kw">val</span> info = BiometricPrompt.PromptInfo.Builder()
+    .setTitle(<span class="str">"Confirm it's you"</span>)
+    .setSubtitle(<span class="str">"Authenticate to view your wallet"</span>)
+    .setAllowedAuthenticators(BIOMETRIC_STRONG <span class="kw">or</span> DEVICE_CREDENTIAL)
+    .build()
+
+prompt.authenticate(info)</code></pre>
+
+<h3>For high-stakes ops — bind to a CryptoObject</h3>
+<p>For payments, "delete account", reveal secret data, you want the auth to <em>materialize</em> a Keystore key (not just gate UI):</p>
+
+<pre><code><span class="kw">val</span> key: SecretKey = ks.getKey(<span class="str">"payment_key"</span>, <span class="kw">null</span>) <span class="kw">as</span> SecretKey
+<span class="kw">val</span> cipher = Cipher.getInstance(<span class="str">"AES/GCM/NoPadding"</span>).apply {
+    init(Cipher.ENCRYPT_MODE, key)
+}
+prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+
+<span class="com">// On success: callback.result.cryptoObject.cipher is now usable</span>
+<span class="com">// The key was Keystore-bound to setUserAuthenticationRequired(true)</span>
+<span class="com">// → without auth, the cipher would have thrown.</span></code></pre>
+
+<table>
+  <thead><tr><th>Authenticator class</th><th>Examples</th><th>Can gate Keystore key?</th></tr></thead>
+  <tbody>
+    <tr><td>BIOMETRIC_STRONG (Class 3)</td><td>Real fingerprint, hardware face ID</td><td>Yes</td></tr>
+    <tr><td>BIOMETRIC_WEAK (Class 2)</td><td>Some face unlock implementations</td><td>No (too spoofable)</td></tr>
+    <tr><td>DEVICE_CREDENTIAL</td><td>PIN, pattern, password</td><td>Yes (Android 11+)</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 22. PLAY INTEGRITY =============== -->
+<h2 id="s7">22. Play Integrity API — anti-tamper / anti-bot</h2>
+
+<p>Google's API that returns a signed verdict telling your backend whether the request comes from a genuine, unmodified app on a Play-protected device. Replaces SafetyNet (deprecated 2024).</p>
+
+<pre><code><span class="kw">val</span> integrity = IntegrityManagerFactory.create(ctx)
+<span class="kw">val</span> nonce = serverProvidedNonce       <span class="com">// fresh, server-generated, per request</span>
+<span class="kw">val</span> req = IntegrityTokenRequest.builder()
+    .setNonce(nonce)
+    .build()
+<span class="kw">val</span> token = integrity.requestIntegrityToken(req).<span class="kw">await</span>().token()
+api.submit(token)                          <span class="com">// server validates with Play Integrity</span></code></pre>
+
+<h3>Server validates and gets back a verdict</h3>
+<table>
+  <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>appIntegrity.appRecognitionVerdict</code></td><td>PLAY_RECOGNIZED / UNRECOGNIZED_VERSION / UNEVALUATED</td></tr>
+    <tr><td><code>deviceIntegrity.deviceRecognitionVerdict</code></td><td>MEETS_BASIC / MEETS_DEVICE / MEETS_STRONG / (none)</td></tr>
+    <tr><td><code>accountDetails.appLicensingVerdict</code></td><td>LICENSED / UNLICENSED</td></tr>
+  </tbody>
+</table>
+
+<h3>When to use</h3>
+<ul>
+  <li>Account creation / signup (defeat bot farms)</li>
+  <li>Payment-related operations (defeat replay attacks)</li>
+  <li>Reward claims, in-app currency operations</li>
+  <li>Sensitive APIs where you don't want a reverse-engineered client</li>
+</ul>
+
+<div class="callout warn"><strong>Quota:</strong> Play Integrity has free tier limits (a few thousand requests/day). For high-volume signup flows you may need Standard or Classic tier or to reserve calls for risky users only.</div>
+
+<!-- =============== 23. WEBVIEW SECURITY =============== -->
+<h2 id="s8">23. WebView security</h2>
+
+<p>WebView is an embedded browser. If you embed remote content, you're embedding a security boundary. Two big rules:</p>
+
+<ol>
+  <li><strong>Don't enable JavaScript unless you absolutely need it.</strong></li>
+  <li><strong>Never expose unsafe APIs via <code>JavascriptInterface</code>.</strong></li>
+</ol>
+
+<h3>Lock-down configuration</h3>
+<pre><code>WebView(ctx).apply {
+    settings.javaScriptEnabled = <span class="kw">true</span>          <span class="com">// only if needed</span>
+    settings.domStorageEnabled = <span class="kw">true</span>
+    settings.allowFileAccess = <span class="kw">false</span>
+    settings.allowContentAccess = <span class="kw">false</span>
+    settings.allowFileAccessFromFileURLs = <span class="kw">false</span>          <span class="com">// XSS goldmine if true</span>
+    settings.allowUniversalAccessFromFileURLs = <span class="kw">false</span>
+    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+
+    addJavascriptInterface(SafeBridge(), <span class="str">"AndroidApp"</span>)   <span class="com">// validate every method!</span>
+    webViewClient = WebViewClient()                       <span class="com">// don't allow URL navigation outside whitelist</span>
+}</code></pre>
+
+<h3>For loading external URLs — prefer Custom Tabs</h3>
+<pre><code><span class="kw">val</span> tabs = CustomTabsIntent.Builder()
+    .setShowTitle(<span class="kw">true</span>)
+    .setToolbarColor(MaterialColors.getColor(...))
+    .build()
+tabs.launchUrl(ctx, Uri.parse(<span class="str">"https://example.com"</span>))</code></pre>
+
+<p>Custom Tabs use the system Chrome with your branding — gets all of Chrome's security model, no embedded browser to worry about.</p>
+
+<!-- =============== 24. STORAGE & PERMS =============== -->
+<h2 id="s9">24. Storage security &amp; runtime permissions</h2>
+
+<h3>Scoped Storage (Android 11+)</h3>
+<ul>
+  <li>Apps can't access arbitrary external storage paths</li>
+  <li>Use <code>MediaStore</code> for photos/videos/audio (with appropriate <code>READ_MEDIA_*</code> permission since 13)</li>
+  <li>Use <strong>Photo Picker</strong> (Android 13+) for photo selection — no permission required</li>
+  <li>Use <code>FileProvider</code> for sharing files with other apps</li>
+  <li>App-private files: <code>context.filesDir</code>, <code>getExternalFilesDir()</code> — wiped on uninstall</li>
+</ul>
+
+<h3>Permission rules</h3>
+<ul>
+  <li><strong>POST_NOTIFICATIONS</strong> (Android 13+): runtime perm; ask only when first useful</li>
+  <li><strong>READ_MEDIA_IMAGES / VIDEO / AUDIO</strong> (Android 13+) replace READ_EXTERNAL_STORAGE</li>
+  <li><strong>READ_MEDIA_VISUAL_USER_SELECTED</strong> (Android 14+): partial photo access</li>
+  <li><strong>USE_FULL_SCREEN_INTENT</strong> (Android 14+): user-grantable; required for incoming-call style notifs</li>
+  <li><strong>SCHEDULE_EXACT_ALARM</strong>: only for time-critical use cases</li>
+</ul>
+
+<!-- =============== 25. DEEP LINK SECURITY =============== -->
+<h2 id="s10">25. Deep link security</h2>
+
+<p>Custom-scheme deep links (<code>myapp://x</code>) can be hijacked by any other app declaring the same scheme. App Links (<code>https://app.example.com/x</code>) verified via Digital Asset Links can't be hijacked.</p>
+
+<pre><code><span class="com">&lt;!-- AndroidManifest.xml --&gt;</span>
+&lt;activity android:name=<span class="str">".DealActivity"</span>&gt;
+    &lt;intent-filter android:autoVerify=<span class="str">"true"</span>&gt;
+        &lt;action android:name=<span class="str">"android.intent.action.VIEW"</span> /&gt;
+        &lt;category android:name=<span class="str">"android.intent.category.DEFAULT"</span> /&gt;
+        &lt;category android:name=<span class="str">"android.intent.category.BROWSABLE"</span> /&gt;
+        &lt;data android:scheme=<span class="str">"https"</span> android:host=<span class="str">"app.example.com"</span>
+              android:pathPrefix=<span class="str">"/deal/"</span> /&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;</code></pre>
+
+<p>Host <code>https://app.example.com/.well-known/assetlinks.json</code>:</p>
+<pre><code>[{
+  <span class="str">"relation"</span>: [<span class="str">"delegate_permission/common.handle_all_urls"</span>],
+  <span class="str">"target"</span>: {
+    <span class="str">"namespace"</span>: <span class="str">"android_app"</span>,
+    <span class="str">"package_name"</span>: <span class="str">"com.example.notes"</span>,
+    <span class="str">"sha256_cert_fingerprints"</span>: [<span class="str">"AB:CD:..."</span>]
+  }
+}]</code></pre>
+
+<p>Now Android verifies your app owns that domain at install time — no other app can claim those links.</p>
+
+<h3>Validate deep link payloads</h3>
+<p>Even App Links need server-side validation. Don't trust IDs in deep links — verify on backend that the user has access to the deep-linked resource.</p>
+
+<!-- =============== 26. OBFUSCATION & ATTESTATION =============== -->
+<h2 id="s11">26. Obfuscation strategy &amp; build-time hardening</h2>
+
+<ul>
+  <li><strong>R8 with default optimize ProGuard rules</strong> — handles 80% of casual reverse engineering</li>
+  <li><strong>Move highly sensitive logic to native (NDK)</strong> — disassembling C++/ARM is significantly harder than Kotlin → Smali</li>
+  <li><strong>Tink / native cipher implementations</strong> over hand-rolled crypto — avoid timing attacks, padding oracle bugs</li>
+  <li><strong>Disable backups for sensitive data</strong>: <code>android:allowBackup="false"</code> in manifest, or per-file backup rules</li>
+  <li><strong>Disable debug builds in production manifest</strong>: <code>android:debuggable="false"</code> (set automatically by release builds)</li>
+  <li><strong>Use Play App Signing</strong> (mandatory for new apps) — Play holds the signing key; you upload signed with your upload key. Lower compromise blast radius.</li>
+  <li><strong>Detect rooted devices</strong> via Play Integrity (deviceIntegrity verdict) — react in policy, not just in client code</li>
+  <li><strong>Detect tampering</strong> via signature verification on startup (cheap, deters casual modders)</li>
+</ul>
+
+<!-- =============== 27. SECURITY CHECKLIST =============== -->
+<h2 id="s12">27. Security shipping checklist</h2>
+
+<div class="two-col">
+  <div class="col-card good"><strong>Before every release</strong>
+    <ul>
+      <li>Network Security Config in place; cleartext disabled</li>
+      <li>Certificate pinning with at least 1 backup pin</li>
+      <li>Refresh token in EncryptedSharedPreferences / Keystore-backed encryption</li>
+      <li>R8 minify + obfuscate enabled</li>
+      <li>App Bundle signed via Play App Signing</li>
+      <li>POST_NOTIFICATIONS asked at the right moment (not on app start)</li>
+      <li>WebView locked down (or replaced with Custom Tabs)</li>
+      <li>App Links autoVerify + assetlinks.json hosted</li>
+      <li>Sensitive log lines stripped (no tokens / PII in Logcat)</li>
+      <li>Play Integrity gating sensitive flows</li>
+      <li>Biometric prompt + key gating for payment / wallet</li>
+      <li>android:allowBackup=false (or backup rules excluding secrets)</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Common security mistakes</strong>
+    <ul>
+      <li>API keys in BuildConfig (extractable)</li>
+      <li>Hardcoded encryption keys in code</li>
+      <li>SharedPreferences with PII in plaintext</li>
+      <li>WebView with JS enabled + JavascriptInterface exposing app methods</li>
+      <li>Custom-scheme deep links (no autoverify)</li>
+      <li>No backup pin → app breaks on cert rotation</li>
+      <li>Trusting deep-link payload IDs without server-side check</li>
+      <li>Debug-only NSC (with user CAs) shipped to prod</li>
+      <li>android:exported=true on every Activity (broaden attack surface)</li>
+      <li>Forgetting to upload mapping.txt (unreadable crash traces)</li>
+      <li>Hand-rolled crypto (broken IVs, ECB mode, weak random)</li>
+      <li>Logging full request/response in production builds</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 28. INTERVIEW Q&A =============== -->
+<h2 id="qa">28. Interview Q&amp;A — perf + security</h2>
+
+<h3>Q: "Walk me through how you'd reduce cold start time by 30%."</h3>
+<p>Three layers. (1) <strong>Baseline Profile</strong> — pre-AOT compile startup paths; biggest win on Compose apps. (2) <strong>App Startup library</strong> — consolidate hidden ContentProviders from libraries into one ordered chain; saves ~100 ms of pre-Application setup. (3) <strong>Defer non-essential SDK init</strong> from Application.onCreate; lazy-init heavy singletons (Database, OkHttpClient). (4) <strong>R8 with shrinking</strong> — smaller bytecode = faster classloading. Verify each via Macrobenchmark with <code>StartupTimingMetric</code>.</p>
+
+<h3>Q: "Why do Compose apps benefit from Baseline Profiles disproportionately?"</h3>
+<p>Compose runtime is method-heavy and JIT-warmup-prone — composition machinery dispatches through many tiny generated functions. JIT takes seconds to identify them as hot and AOT-compile. A Baseline Profile pre-compiles those methods at install time, so the first user interaction has them already AOT'd. Typical wins: cold start 20-40%, scroll jank 30-50%.</p>
+
+<h3>Q: "How do you find an unnecessary recomposition?"</h3>
+<p>Two-pronged. <strong>Static</strong>: enable Compose Compiler metrics, check generated <code>*-composables.txt</code> — every Composable taking parameters should be <code>skippable</code>. If not, find the unstable parameter (usually <code>List&lt;T&gt;</code>) and switch to <code>ImmutableList</code>. <strong>Dynamic</strong>: Layout Inspector → "Show recomposition counts" — interact with the screen, find Composables with absurdly high counts, fix per Compose perf rules (defer State reads, use derivedStateOf, hoist unstable lambdas).</p>
+
+<h3>Q: "Difference between R8 and ProGuard?"</h3>
+<p>R8 is Google's official replacement for ProGuard since AGP 3.4. Same general purpose (shrink + optimize + obfuscate) but compiled into AGP, faster, integrates with D8 dex compilation, supports Kotlin metadata better, has a more aggressive optimizer. ProGuard rules (<code>proguard-rules.pro</code>) are still consumed — backwards compatible.</p>
+
+<h3>Q: "How do you store a refresh token securely?"</h3>
+<p>EncryptedSharedPreferences if you have to use the deprecated Jetpack Security artifact, or DataStore + manual Keystore-backed AES-GCM encryption (preferred for new code). Key generated in Android Keystore (hardware-backed via TEE/StrongBox where available — keys can't be exfiltrated even on rooted devices). For high-stakes operations, gate the key with <code>setUserAuthenticationRequired(true)</code> so biometric/PIN is required before use.</p>
+
+<h3>Q: "Certificate pinning — how, and what's the gotcha?"</h3>
+<p>Configure via Network Security Config (declarative XML) or OkHttp's <code>CertificatePinner</code> (programmatic). Pin SHA-256 of the SPKI of an intermediate or leaf cert. <strong>Gotcha:</strong> always ship at least one backup pin. If your prod cert rotates and you didn't update the app, every install breaks. Plan for cert lifecycle and have a remote killswitch.</p>
+
+<h3>Q: "What is Play Integrity and when do you use it?"</h3>
+<p>Anti-tamper / anti-bot API; replaced SafetyNet in 2024. Returns a signed verdict telling your backend whether the request comes from a genuine, unmodified app on a Play-protected device. Three verdicts: app integrity (genuine APK?), device integrity (basic / device / strong), license (Play-licensed user). Use for: signup, payment, account-related ops, sensitive APIs. Free tier has quota — call sparingly.</p>
+
+<h3>Q: "Why is GlobalScope a perf and security concern?"</h3>
+<p>Perf: leaks coroutines (no parent → never cancelled). Hidden allocations accumulate; tests can't drain. Security: Coroutines launched from GlobalScope might outlive the user's session, doing work after logout — sending stale auth tokens, logging stale state. Use lifecycle-bound scopes (<code>viewModelScope</code>, <code>lifecycleScope</code>) or a properly-cancelled custom <code>CoroutineScope(SupervisorJob() + ...)</code>.</p>
+
+<h3>Q: "How do you find an ANR cause?"</h3>
+<p>Three places. (1) Play Console Vitals shows ANR frequency + the main thread stack at time of ANR. (2) Crashlytics same data. (3) Reproduce locally with StrictMode enabled (catches main-thread I/O). Common causes: synchronous DB on main, large JSON parse, bitmap decode, deadlock in coroutines. Fix: <code>withContext(Dispatchers.IO)</code>, async parse, downsample at decode.</p>
+
+<h3>Q: "How do you avoid memory leaks?"</h3>
+<p>Run LeakCanary in debug — instant alerts on retained Activity/ViewModel/Fragment. Common fixes: avoid static references to Context/Activity; replace inner classes with static nested + WeakReference; cancel coroutines via lifecycle scopes; unregister listeners in onPause/onStop; use <code>applicationContext</code> in long-lived components.</p>
+
+<h3>Q: "Compose stability - what does it mean and why does it matter?"</h3>
+<p>A type is "stable" if Compose can prove its <code>equals()</code> is honest and the type doesn't mutate without notification. Stable + unchanged params → Composable can skip on recomposition. Unstable params → conservative recompose every time. Most production wins come from making types stable: use <code>ImmutableList</code>, <code>val</code>-only data classes, <code>@Immutable</code> annotations.</p>
+
+<!-- =============== 29. RECALL CARD =============== -->
+<h2 id="recall">29. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>Performance — measure these</h3>
+  <ul>
+    <li>Cold start: Macrobenchmark StartupTimingMetric, target &lt; 500 ms</li>
+    <li>Frame timing: FrameTimingMetric, target p99 &lt; 16.6 ms</li>
+    <li>ANR rate: &lt; 0.47% (Play threshold)</li>
+    <li>Crash-free sessions: ≥ 99.5%</li>
+  </ul>
+
+  <h3>Performance — biggest levers</h3>
+  <ul>
+    <li>Baseline Profile (cold start +20-40%, scroll +30-50%)</li>
+    <li>R8 minify + shrink (APK -30-60%)</li>
+    <li>App Startup library (consolidate ContentProviders)</li>
+    <li>Dispatchers.IO for blocking, Default for CPU</li>
+    <li>StrictMode in debug, never main-thread I/O in prod</li>
+    <li>Compose: stable params, defer reads to lower phases, derivedStateOf</li>
+    <li>Coil/Glide HARDWARE bitmap + downsample</li>
+    <li>WorkManager constraints (UNMETERED, BatteryNotLow)</li>
+  </ul>
+
+  <h3>Security — must-have layers</h3>
+  <ul>
+    <li>Network Security Config + cert pinning + 1 backup pin</li>
+    <li>Keystore-backed encryption for refresh tokens</li>
+    <li>BiometricPrompt + CryptoObject for high-stakes ops</li>
+    <li>Play Integrity for signup / payment endpoints</li>
+    <li>R8 obfuscation; mapping.txt to Crashlytics + Play</li>
+    <li>App Links + autoVerify + assetlinks.json</li>
+    <li>Custom Tabs over WebView for external URLs</li>
+    <li>Scoped Storage / Photo Picker over READ_EXTERNAL_STORAGE</li>
+    <li>android:allowBackup=false (or per-file rules)</li>
+    <li>Play App Signing (mandatory anyway)</li>
+  </ul>
+
+  <h3>Avoid (perf + security)</h3>
+  <ul>
+    <li>API keys in BuildConfig</li>
+    <li>SharedPreferences with PII plaintext</li>
+    <li>WebView with JS + JavascriptInterface exposing methods</li>
+    <li>GlobalScope coroutines</li>
+    <li>android:largeHeap (mask for leak)</li>
+    <li>Profiling debug builds for perf</li>
+    <li>Hardcoded encryption keys</li>
+    <li>Pinning without backup pins</li>
+    <li>Heavy work in Application.onCreate</li>
+  </ul>
+</div>
+
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read top to bottom for understanding · skim §15 (perf checklist), §27 (security checklist), §28 (Q&amp;A), §29 (recall) before any interview.
+    Pair with the other cheat sheets in this repo.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'persec-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  let inSecurity = false;
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    if (h2.id === 's1' && !inSecurity) { html.push('<div class="sidebar-title">Performance</div>'); inSecurity = true; }
+    if (h2.id === 's1') { html.push('<div class="sidebar-title">Security</div>'); }
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
