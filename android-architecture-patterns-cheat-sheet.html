@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Android Architecture Patterns — MVP · MVVM · MVI · Clean · KMP</title>
+<meta name="description" content="A dense personal cheat sheet for Android architecture: MVP, MVVM, MVI, Clean Architecture, multi-module, KMP, and modern patterns (Voyager, Decompose, Circuit). Each with diagrams, sample code, pros/cons, where things fit (Services, WorkManager, ContentProvider, Room, DI), package structures, common mistakes, SOLID examples, and the 'why this not that' interview framing." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 280px minmax(0, 1fr);
+    gap: 28px; max-width: 1300px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+
+  .diagram {
+    background: var(--code-bg); color: #e6edf3;
+    padding: 14px 16px; border-radius: 10px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre; margin: 10px 0 14px;
+    border: 1px solid var(--code-border);
+  }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.92rem;
+  }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, .diagram, table, .callout, .two-col { page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Architecture · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Android Architecture Patterns</h1>
+  <div class="subtitle">MVP · MVVM · MVI · Clean · Multi-module · KMP · Voyager / Decompose / Circuit</div>
+  <div class="badges">
+    <span class="badge">Diagrams</span>
+    <span class="badge">Sample code</span>
+    <span class="badge">SOLID examples</span>
+    <span class="badge">Where-things-fit matrix</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a personal high-density study aid covering every architecture pattern that matters in modern Android. Each pattern gets the same treatment: <em>why it exists, the diagram, pros/cons, sample code (View → ViewModel/Presenter → Repo → Data), where to put services/WorkManager/ContentProvider/Room/DI, KMP-friendly version, and the common mistakes</em>. Plus SOLID with concrete Android examples for "why this not that" interview questions, package structure templates, and how to start a fresh project. Written in plain English with original code examples.
+</section>
+
+<!-- =============== 1. WHY ARCHITECTURE =============== -->
+<h2 id="s1">1. Why architecture matters — the problem we're solving</h2>
+
+<p>Without architecture, all your code lives in one place. In early Android (2010-ish), that one place was the Activity. The "god Activity" problem looked like this:</p>
+
+<pre><code><span class="kw">class</span> ProfileActivity : Activity() {
+    <span class="kw">override fun</span> onCreate(b: Bundle?) {
+        <span class="kw">super</span>.onCreate(b)
+        setContentView(R.layout.profile)
+
+        <span class="kw">val</span> retrofit = Retrofit.Builder()...build()        <span class="com">// Network setup</span>
+        <span class="kw">val</span> db = openOrCreateDatabase(...)               <span class="com">// DB access</span>
+
+        Thread {                                          <span class="com">// Threading</span>
+            <span class="kw">val</span> raw = retrofit.create(Api::<span class="kw">class</span>.java).fetchUser(<span class="num">42</span>).execute()
+            <span class="kw">val</span> user = parseAndValidate(raw)               <span class="com">// Business logic</span>
+            db.execSQL(<span class="str">"INSERT..."</span>)                       <span class="com">// Persistence</span>
+            runOnUiThread {
+                findViewById&lt;TextView&gt;(R.id.name).text = user.name   <span class="com">// UI</span>
+                findViewById&lt;TextView&gt;(R.id.email).text = user.email
+            }
+        }.start()
+    }
+}</code></pre>
+
+<p>Problems with this code:</p>
+<ul>
+  <li><strong>Cannot test</strong> — Activity needs Android framework; can't run on JVM.</li>
+  <li><strong>Cannot reuse</strong> — fetch logic is tied to this Activity.</li>
+  <li><strong>Lifecycle bugs</strong> — rotation kills the Thread but the network response still tries to update destroyed views.</li>
+  <li><strong>Single Responsibility violation</strong> — one class doing networking, persistence, threading, UI.</li>
+  <li><strong>Hard to evolve</strong> — change one piece and four others break.</li>
+</ul>
+
+<p>Architecture patterns are answers to these problems. They impose a <strong>separation of concerns</strong>: each piece of code does one thing well, and the pieces communicate through well-defined contracts. This makes code testable, reusable, and survivable.</p>
+
+<!-- =============== 2. MENTAL MODEL =============== -->
+<h2 id="s2">2. The shared mental model — three layers + UDF</h2>
+
+<p>Every modern Android architecture pattern is a refinement of the same three-layer idea inherited from broader software design (Hexagonal Architecture, Clean Architecture, Domain-Driven Design):</p>
+
+<div class="diagram">┌────────────────────────────────────────────────────┐
+│  PRESENTATION LAYER                                │
+│  (View, ViewModel/Presenter, UI state)             │
+│  Knows about Android framework                     │
+└─────────────────┬──────────────────────────────────┘
+                  │ depends on
+                  ▼
+┌────────────────────────────────────────────────────┐
+│  DOMAIN LAYER (optional but recommended for big)   │
+│  (UseCases, business rules, domain models)         │
+│  PURE Kotlin — no Android, no Retrofit, no Room    │
+└─────────────────┬──────────────────────────────────┘
+                  │ depends on
+                  ▼
+┌────────────────────────────────────────────────────┐
+│  DATA LAYER                                        │
+│  (Repository, DataSources: Room, Retrofit, DataStore) │
+│  Knows about persistence/network details           │
+└────────────────────────────────────────────────────┘</div>
+
+<p>Two universal rules:</p>
+<ol>
+  <li><strong>Dependencies point inward.</strong> UI depends on Domain; Domain depends on nothing. Data also depends on Domain (because it implements Domain interfaces). This is the <em>Dependency Inversion Principle</em> in action.</li>
+  <li><strong>Unidirectional Data Flow (UDF).</strong> Events go up (UI → ViewModel → Repo); state comes down (Repo → ViewModel → UI). No state mutates "sideways" between siblings.</li>
+</ol>
+
+<p>What changes between MVP, MVVM, and MVI is <strong>how the presentation layer is structured</strong> — not the data layer. Most "MVVM vs MVI" debates are really debates about state management, not full architecture.</p>
+
+<!-- =============== 3. SOLID IN ANDROID =============== -->
+<h2 id="s3">3. SOLID with concrete Android examples (interview-ready)</h2>
+
+<p>Five principles from Robert C. Martin. Most Android architecture choices (Repository, Hilt, ViewModel) are SOLID applied. Knowing concrete examples lets you defend any design decision in an interview.</p>
+
+<h3>S — Single Responsibility Principle</h3>
+<p>"A class has one reason to change."</p>
+<div class="two-col">
+  <div class="col-card bad"><strong>Violates SRP</strong><pre style="margin:0; font-size: 0.75rem;"><code><span class="kw">class</span> UserManager {
+    <span class="kw">fun</span> fetchUser() = api.user()
+    <span class="kw">fun</span> saveUser() = db.insert()
+    <span class="kw">fun</span> showUser() = view.render()
+    <span class="kw">fun</span> validateUser() = ...
+}</code></pre>One class changes for: API change, DB schema change, UI change, validation rule change.</div>
+  <div class="col-card good"><strong>Follows SRP</strong><pre style="margin:0; font-size: 0.75rem;"><code><span class="kw">class</span> UserApi { <span class="kw">fun</span> fetch() = ... }
+<span class="kw">class</span> UserDao { <span class="kw">fun</span> save() = ... }
+<span class="kw">class</span> UserRepository(api, dao)
+<span class="kw">class</span> UserViewModel(repo)
+<span class="kw">class</span> UserValidator()</code></pre>Each class has exactly one reason to change.</div>
+</div>
+
+<h3>O — Open/Closed Principle</h3>
+<p>"Open for extension, closed for modification." Add new behavior without touching existing code.</p>
+<pre><code><span class="com">// Bad — switching on type, must edit every time you add a payment method</span>
+<span class="kw">fun</span> charge(method: String, amount: Long) = <span class="kw">when</span> (method) {
+    <span class="str">"card"</span> -&gt; chargeCard(amount)
+    <span class="str">"upi"</span>  -&gt; chargeUpi(amount)
+    <span class="str">"wallet"</span> -&gt; chargeWallet(amount)
+}
+
+<span class="com">// Good — extend via interface, no modification needed for new types</span>
+<span class="kw">interface</span> PaymentMethod { <span class="kw">suspend fun</span> charge(amount: Long) }
+<span class="kw">class</span> CardPayment : PaymentMethod { ... }
+<span class="kw">class</span> UpiPayment : PaymentMethod { ... }
+
+<span class="kw">class</span> Checkout(<span class="kw">val</span> method: PaymentMethod) {
+    <span class="kw">suspend fun</span> charge(amount: Long) = method.charge(amount)
+}</code></pre>
+<p><strong>Android examples:</strong> OkHttp Interceptors (add new without editing OkHttpClient), Compose Modifiers, Hilt multibinding (<code>@IntoSet</code>).</p>
+
+<h3>L — Liskov Substitution Principle</h3>
+<p>"Subtypes must be drop-in replacements for their parent type — without changing program correctness."</p>
+<pre><code><span class="com">// Production</span>
+<span class="kw">class</span> UserRepositoryImpl(<span class="kw">val</span> api: UserApi) : UserRepository {
+    <span class="kw">override suspend fun</span> getUser(id: String) = api.fetch(id)
+}
+
+<span class="com">// In tests — must satisfy the SAME contract</span>
+<span class="kw">class</span> FakeUserRepository(<span class="kw">val</span> users: Map&lt;String, User&gt;) : UserRepository {
+    <span class="kw">override suspend fun</span> getUser(id: String) = users[id] ?: error(<span class="str">"not found"</span>)
+}
+
+<span class="com">// ViewModel doesn't know which one it got — that's the LSP guarantee</span>
+<span class="kw">class</span> UserVm(<span class="kw">val</span> repo: UserRepository) { ... }</code></pre>
+<p><strong>Common violation:</strong> a subclass throws <code>UnsupportedOperationException</code> for a method the parent declares — breaks substitutability.</p>
+
+<h3>I — Interface Segregation Principle</h3>
+<p>"Many small focused interfaces beat one fat interface."</p>
+<pre><code><span class="com">// Bad — fat interface forces every consumer to know all of it</span>
+<span class="kw">interface</span> Repository {
+    <span class="kw">suspend fun</span> getUsers(): List&lt;User&gt;
+    <span class="kw">suspend fun</span> getOrders(): List&lt;Order&gt;
+    <span class="kw">suspend fun</span> getNotifications(): List&lt;Notif&gt;
+    <span class="kw">suspend fun</span> getReports(): List&lt;Report&gt;
+}
+
+<span class="com">// Good — focused interfaces, easier to fake/test/replace</span>
+<span class="kw">interface</span> UserRepository  { <span class="kw">suspend fun</span> getUsers(): List&lt;User&gt; }
+<span class="kw">interface</span> OrderRepository { <span class="kw">suspend fun</span> getOrders(): List&lt;Order&gt; }
+<span class="kw">interface</span> NotifRepository { <span class="kw">suspend fun</span> getNotifications(): List&lt;Notif&gt; }</code></pre>
+
+<h3>D — Dependency Inversion Principle</h3>
+<p>"Depend on abstractions, not on concretions. High-level modules don't know about low-level details."</p>
+<pre><code><span class="com">// Bad — ViewModel knows about Retrofit, Room, network details</span>
+<span class="kw">class</span> UserVm {
+    <span class="kw">private val</span> retrofit = Retrofit.Builder()...build()
+    <span class="kw">private val</span> api = retrofit.create(UserApi::<span class="kw">class</span>.java)
+    <span class="kw">suspend fun</span> load() = api.user()                    <span class="com">// tightly coupled</span>
+}
+
+<span class="com">// Good — depend on abstraction; let DI inject the impl</span>
+<span class="kw">class</span> UserVm @Inject <span class="kw">constructor</span>(<span class="kw">val</span> repo: UserRepository) {
+    <span class="kw">suspend fun</span> load() = repo.getUser()
+}
+<span class="com">// repo is an interface; implementation is in data layer</span>
+<span class="com">// Hilt module wires UserRepositoryImpl in production, FakeUserRepository in tests</span></code></pre>
+<p>This single principle is why Android architecture works at all. Every "this layer doesn't know about that layer" rule descends from DIP.</p>
+
+<!-- =============== 4. THE HISTORY =============== -->
+<h2 id="s4">4. The history — how we got here</h2>
+
+<table>
+  <thead><tr><th>Era</th><th>Pattern</th><th>What problem it solved</th></tr></thead>
+  <tbody>
+    <tr><td>~2008-2012</td><td>God Activity</td><td>(it didn't — it WAS the problem)</td></tr>
+    <tr><td>~2012-2014</td><td>MVC (loose)</td><td>"Move some logic out of the Activity into a Controller-ish class"</td></tr>
+    <tr><td>~2014-2017</td><td>MVP</td><td>Testable presentation layer; Presenter is plain Kotlin/Java, View is a passive interface</td></tr>
+    <tr><td>~2017-2020</td><td>MVVM (Jetpack)</td><td>Eliminated Presenter↔View boilerplate via observable state (LiveData → Flow)</td></tr>
+    <tr><td>~2020+</td><td>MVI</td><td>Tame complex async screens with a single immutable state + reducer</td></tr>
+    <tr><td>~2018+</td><td>Clean Architecture (UseCases)</td><td>Add a Domain layer between UI and Data for shared business logic across screens or platforms</td></tr>
+    <tr><td>~2020+</td><td>Multi-module</td><td>Faster builds, enforced boundaries, dynamic delivery</td></tr>
+    <tr><td>~2022+</td><td>KMP-shared modules</td><td>Share business logic between Android + iOS + web</td></tr>
+    <tr><td>2023+</td><td>Voyager / Decompose / Circuit</td><td>Compose-first navigation + state management with stronger guarantees</td></tr>
+  </tbody>
+</table>
+
+<p>Notice: each new pattern is a refinement, not a replacement. Many production apps use a combination — e.g., MVVM at the screen level, Clean Architecture for Domain, multi-module at the project level, and KMP for the data layer.</p>
+
+<!-- =============== 5. MVC =============== -->
+<h2 id="s5">5. MVC — the brief context</h2>
+
+<p>"Model-View-Controller" came from Smalltalk-80 in the 1970s. Used everywhere from Rails to iOS. In Android, "MVC" was never a clean implementation — the Activity was both View and Controller, leading to god-class problems.</p>
+
+<div class="diagram">┌──────────┐ user input  ┌──────────────┐  manipulates  ┌──────────┐
+│   View   │────────────▶│  Controller  │──────────────▶│  Model   │
+│  (XML)   │             │  (Activity)  │               │  (data)  │
+└──────────┘◀────────────│              │◀──────────────│          │
+              updates    └──────────────┘    notifies   └──────────┘</div>
+
+<p>Why MVC failed in Android:</p>
+<ul>
+  <li>The Controller (Activity) was tied to the framework — couldn't unit test.</li>
+  <li>View (XML) had no logic, but the Activity rendered into the View directly via <code>findViewById</code> — making it a coupled View+Controller hybrid.</li>
+  <li>No clear contract between View and Controller.</li>
+</ul>
+
+<p>For new code: skip MVC. Mentioned only because some interview questions ask "why did Android move past MVC?"</p>
+
+<!-- =============== 6. MVP =============== -->
+<h2 id="s6">6. MVP — Model-View-Presenter</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">┌─────────────────┐                ┌─────────────────┐                ┌─────────────────┐
+│      VIEW       │ user action    │    PRESENTER    │  fetch / save  │      MODEL      │
+│  Activity /     │───────────────▶│  Plain Kotlin   │───────────────▶│  Repository +   │
+│  Fragment       │                │  class — no     │                │  DataSources    │
+│  (passive)      │                │  Android refs   │                │                 │
+└────────┬────────┘                └────────┬────────┘                └─────────────────┘
+         ▲                                  │                                  │
+         │  presenter.attach(view)          │                                  │
+         │  view.showUser(user)             │  view.showUser(user)             │
+         └──── interface contract ──────────┴──────────────────────────────────┘
+                  (View interface)</div>
+
+<h3>Origin / inspiration</h3>
+<p>Came from <strong>Martin Fowler's article on UI patterns</strong> (Presentation Model). The thought process: "MVC is broken in fat-client UIs because the Controller can't easily test the View. So let's flip it — make the View dumb (passive interface), and put the View-driving logic in a separate Presenter class that only talks to the View through that interface. Now we can fake the View in tests."</p>
+
+<h3>Sample code</h3>
+<pre><code><span class="com">// 1. View interface — what the Presenter knows about the screen</span>
+<span class="kw">interface</span> UserView {
+    <span class="kw">fun</span> showLoading()
+    <span class="kw">fun</span> showUser(user: User)
+    <span class="kw">fun</span> showError(message: String)
+}
+
+<span class="com">// 2. Presenter — pure Kotlin, testable on JVM</span>
+<span class="kw">class</span> UserPresenter(
+    <span class="kw">private val</span> view: UserView,
+    <span class="kw">private val</span> repo: UserRepository,
+    <span class="kw">private val</span> scope: CoroutineScope
+) {
+    <span class="kw">fun</span> loadUser(id: String) {
+        view.showLoading()
+        scope.launch {
+            <span class="kw">try</span> { view.showUser(repo.getUser(id)) }
+            <span class="kw">catch</span> (e: Exception) { view.showError(e.message ?: <span class="str">"error"</span>) }
+        }
+    }
+
+    <span class="kw">fun</span> detach() { scope.cancel() }
+}
+
+<span class="com">// 3. Activity — implements View; forwards events to Presenter</span>
+<span class="kw">class</span> UserActivity : AppCompatActivity(), UserView {
+    <span class="kw">private lateinit var</span> presenter: UserPresenter
+
+    <span class="kw">override fun</span> onCreate(b: Bundle?) {
+        <span class="kw">super</span>.onCreate(b)
+        setContentView(R.layout.user)
+        presenter = UserPresenter(<span class="kw">this</span>, AppContainer.userRepo, MainScope())
+        presenter.loadUser(intent.getStringExtra(<span class="str">"id"</span>)!!)
+    }
+
+    <span class="kw">override fun</span> showLoading() { findViewById&lt;...&gt;(R.id.spinner).isVisible = <span class="kw">true</span> }
+    <span class="kw">override fun</span> showUser(user: User) { ... }
+    <span class="kw">override fun</span> showError(message: String) { ... }
+
+    <span class="kw">override fun</span> onDestroy() { presenter.detach(); <span class="kw">super</span>.onDestroy() }
+}
+
+<span class="com">// 4. Repository — same as MVVM/MVI, see §7</span></code></pre>
+
+<h3>Pros and cons</h3>
+<div class="two-col">
+  <div class="col-card good"><strong>Pros</strong>
+    <ul>
+      <li>Fully testable Presenter (no Android dependencies)</li>
+      <li>Clear contract via View interface</li>
+      <li>Works with Java codebases (no Coroutines required)</li>
+      <li>Easy to understand — explicit method calls</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Cons</strong>
+    <ul>
+      <li>Lots of interface boilerplate per screen</li>
+      <li>Presenter holds View reference → leak risk if not detached on destroy</li>
+      <li>Doesn't survive configuration changes — must re-attach</li>
+      <li>State management is manual (Presenter mutates fields)</li>
+      <li>Doesn't fit reactive UIs naturally — no observable streams</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Common mistakes</h3>
+<ul>
+  <li><strong>Forgetting to detach</strong> the Presenter in <code>onDestroy()</code> → memory leak (Presenter holds Activity).</li>
+  <li><strong>Presenter calling Android APIs</strong> directly — defeats the testability purpose.</li>
+  <li><strong>Bloated View interface</strong> with 30 methods — split per screen state instead.</li>
+  <li><strong>Storing UI state in the Presenter</strong> — gets lost on rotation. Use a Bundle or move to MVVM.</li>
+</ul>
+
+<h3>Where things fit in MVP</h3>
+<table>
+  <thead><tr><th>Component</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>Activity / Fragment</td><td>View layer — implements View interface, no business logic</td></tr>
+    <tr><td>Presenter</td><td>Presentation layer — orchestrates View ↔ Model</td></tr>
+    <tr><td>Repository</td><td>Data layer — single source of truth</td></tr>
+    <tr><td>Retrofit / Room / DataStore</td><td>Inside Repository — data sources</td></tr>
+    <tr><td>WorkManager</td><td>Triggered from Repository, not from Presenter (Presenter doesn't know about background)</td></tr>
+    <tr><td>ContentProvider</td><td>Wrap inside a DataSource class; expose suspend functions</td></tr>
+    <tr><td>Service / ForegroundService</td><td>Started from Repository or Application; communicates back via Repository's Flow</td></tr>
+    <tr><td>DI (Koin/Hilt/Manual)</td><td>Inject Presenter into Activity (manual) or via Hilt's <code>@AndroidEntryPoint</code></td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 7. MVVM =============== -->
+<h2 id="s7">7. MVVM — Model-View-ViewModel (the Android default)</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">┌────────────────────┐  observe StateFlow ┌──────────────────────┐  suspend  ┌──────────────────┐
+│       VIEW         │◀───────────────────│      VIEWMODEL       │──────────▶│   REPOSITORY     │
+│  Compose /         │                    │  Holds StateFlow&lt;UI&gt;  │           │  Single source   │
+│  Activity /        │  intents (clicks,  │  Has viewModelScope  │           │  of truth        │
+│  Fragment          │  events) ─────────▶│  Survives rotation   │           │                  │
+└────────────────────┘                    └──────────────────────┘           └────────┬─────────┘
+                                                                                      │
+                                                            ┌─────────────────────────┼─────────────────────────┐
+                                                            ▼                         ▼                         ▼
+                                                       ┌──────────┐             ┌──────────┐             ┌──────────┐
+                                                       │  Room    │             │ Retrofit │             │DataStore │
+                                                       │  (DAO)   │             │ (Api)    │             │          │
+                                                       └──────────┘             └──────────┘             └──────────┘</div>
+
+<h3>Origin / inspiration</h3>
+<p>MVVM was created by Microsoft for WPF/Silverlight (2005). The thought process: "Presenter ↔ View becomes painful when you want a richer View. What if the View just <em>observes</em> data exposed by the ViewModel, and changes happen by updating the data — not by calling methods on the View?" That observation pattern is straight out of <strong>the Observer pattern</strong> from Gang of Four; Android's LiveData and Flow are concrete implementations.</p>
+
+<p>Android picked it up around 2017 with <strong>Architecture Components (ViewModel + LiveData)</strong>. The framework <code>ViewModel</code> class survives configuration changes — a problem that MVP couldn't easily solve.</p>
+
+<h3>Sample code (View → ViewModel → Repository → Data)</h3>
+<pre><code><span class="com">// 1. UI state — single immutable representation of the screen</span>
+<span class="kw">data class</span> UserUiState(
+    <span class="kw">val</span> loading: Boolean = <span class="kw">false</span>,
+    <span class="kw">val</span> user: User? = <span class="kw">null</span>,
+    <span class="kw">val</span> error: String? = <span class="kw">null</span>
+)
+
+<span class="com">// 2. ViewModel — exposes state, accepts events</span>
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> UserViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: UserRepository,
+    <span class="kw">private val</span> handle: SavedStateHandle
+) : ViewModel() {
+    <span class="kw">private val</span> _uiState = MutableStateFlow(UserUiState())
+    <span class="kw">val</span> uiState: StateFlow&lt;UserUiState&gt; = _uiState.asStateFlow()
+
+    <span class="kw">init</span> { load(handle.get&lt;String&gt;(<span class="str">"id"</span>) ?: <span class="kw">return</span>) }
+
+    <span class="kw">fun</span> load(id: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(loading = <span class="kw">true</span>, error = <span class="kw">null</span>) }
+            <span class="kw">try</span> {
+                <span class="kw">val</span> user = repo.getUser(id)
+                _uiState.update { it.copy(loading = <span class="kw">false</span>, user = user) }
+            } <span class="kw">catch</span> (e: Exception) {
+                _uiState.update { it.copy(loading = <span class="kw">false</span>, error = e.message) }
+            }
+        }
+    }
+
+    <span class="kw">fun</span> refresh() = load(handle.get&lt;String&gt;(<span class="str">"id"</span>)!!)
+}
+
+<span class="com">// 3. View (Compose) — observes state, dispatches events</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> UserScreen(vm: UserViewModel = hiltViewModel()) {
+    <span class="kw">val</span> state <span class="kw">by</span> vm.uiState.collectAsStateWithLifecycle()
+    <span class="kw">when</span> {
+        state.loading -&gt; CircularProgressIndicator()
+        state.user != <span class="kw">null</span> -&gt; UserCard(state.user!!) { vm.refresh() }
+        state.error != <span class="kw">null</span> -&gt; ErrorView(state.error!!) { vm.refresh() }
+    }
+}
+
+<span class="com">// 4. Repository — interface in domain, impl in data</span>
+<span class="kw">interface</span> UserRepository {
+    <span class="kw">suspend fun</span> getUser(id: String): User
+    <span class="kw">fun</span> observeUser(id: String): Flow&lt;User&gt;
+}
+
+<span class="kw">class</span> UserRepositoryImpl @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> api: UserApi,
+    <span class="kw">private val</span> dao: UserDao
+) : UserRepository {
+    <span class="kw">override suspend fun</span> getUser(id: String): User {
+        <span class="kw">val</span> remote = api.fetch(id)
+        dao.upsert(remote)                          <span class="com">// cache</span>
+        <span class="kw">return</span> dao.get(id)                          <span class="com">// always read from Room (single source of truth)</span>
+    }
+    <span class="kw">override fun</span> observeUser(id: String) = dao.observeFlow(id)
+}
+
+<span class="com">// 5. Data sources</span>
+<span class="anno">@Dao</span>
+<span class="kw">interface</span> UserDao {
+    <span class="anno">@Upsert</span> <span class="kw">suspend fun</span> upsert(user: User)
+    <span class="anno">@Query</span>(<span class="str">"SELECT * FROM User WHERE id = :id"</span>) <span class="kw">suspend fun</span> get(id: String): User
+    <span class="anno">@Query</span>(<span class="str">"SELECT * FROM User WHERE id = :id"</span>) <span class="kw">fun</span> observeFlow(id: String): Flow&lt;User&gt;
+}
+
+<span class="kw">interface</span> UserApi {
+    <span class="anno">@GET</span>(<span class="str">"users/{id}"</span>) <span class="kw">suspend fun</span> fetch(<span class="anno">@Path</span>(<span class="str">"id"</span>) id: String): User
+}</code></pre>
+
+<h3>Pros and cons</h3>
+<div class="two-col">
+  <div class="col-card good"><strong>Pros</strong>
+    <ul>
+      <li>ViewModel survives configuration changes (built-in)</li>
+      <li>No View interface boilerplate</li>
+      <li>State is observable — UI reacts automatically</li>
+      <li>Easy to test (StateFlow assertions in <code>runTest</code>)</li>
+      <li>First-class Jetpack support (viewModelScope, SavedStateHandle, hiltViewModel)</li>
+      <li>Compose was designed around this pattern</li>
+      <li>Lower boilerplate than MVI</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Cons</strong>
+    <ul>
+      <li>Easy to leak state across multiple StateFlows that should be one</li>
+      <li>"What's the current state?" can be ambiguous if you have many fields not bundled into one</li>
+      <li>One-shot events (toast, navigate) need careful handling — SharedFlow + replay=0</li>
+      <li>Can drift toward "MVC with extra steps" if ViewModel becomes a god class</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Common mistakes / misconceptions</h3>
+<ul>
+  <li><strong>Putting Android Context in ViewModel</strong> — leak. Use Application context only via Hilt's <code>@ApplicationContext</code>.</li>
+  <li><strong>Using LiveData for one-shot events</strong> — they replay to new observers, double-firing toasts. Use <code>SharedFlow(replay=0)</code> or "Event wrapper" pattern.</li>
+  <li><strong>Calling Repository from the View directly</strong> — defeats the whole point. UI talks to ViewModel only.</li>
+  <li><strong>One ViewModel per Composable</strong> — wasteful. ViewModel is per logical screen, not per leaf widget.</li>
+  <li><strong>Putting business logic in the ViewModel that should be in a UseCase</strong> — fine for small apps; pulls into Domain when you reuse logic across screens.</li>
+  <li><strong>Multiple StateFlows</strong> when one would do — synchronization nightmares. Combine into one <code>UiState</code>.</li>
+</ul>
+
+<h3>Where things fit in MVVM</h3>
+<table>
+  <thead><tr><th>Component</th><th>Where</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Activity / Fragment / Composable</td><td>View — observes state, dispatches intents</td><td>UI logic only; no business rules</td></tr>
+    <tr><td>ViewModel</td><td>Presentation — holds StateFlow, exposes events</td><td>Survives rotation; lifecycle-aware</td></tr>
+    <tr><td>UseCase (optional)</td><td>Domain — single business operation</td><td>Reuse across screens; pure Kotlin</td></tr>
+    <tr><td>Repository</td><td>Data layer — single source of truth</td><td>Hides which data source supplies what</td></tr>
+    <tr><td>Room DAO</td><td>Inside Repository</td><td>Local persistence</td></tr>
+    <tr><td>Retrofit Api</td><td>Inside Repository</td><td>Remote data source</td></tr>
+    <tr><td>DataStore</td><td>Inside Repository (or its own SettingsRepository)</td><td>Preferences / typed config</td></tr>
+    <tr><td>WorkManager</td><td>Triggered from Repository or a UseCase</td><td>Background sync, retry, deferred uploads</td></tr>
+    <tr><td>ForegroundService</td><td>Started from Application or a Repository; exposes Flow back</td><td>Long-running visible work (music, GPS, broadcast)</td></tr>
+    <tr><td>ContentProvider</td><td>Wrap as a DataSource; expose suspend / Flow API</td><td>Don't expose ContentProvider to ViewModel directly</td></tr>
+    <tr><td>BroadcastReceiver</td><td>Triggered → notify Repository (which then updates state)</td><td>Bridge between system events and your state</td></tr>
+    <tr><td>Hilt / Koin / Manual DI</td><td>Composition root: Application class for singletons; <code>@HiltViewModel</code> for VMs</td><td>Wire dependencies without each class building its own</td></tr>
+  </tbody>
+</table>
+
+<h3>Package structure (single-module MVVM)</h3>
+<pre><code>com.example.app/
+├── App.kt                            <span class="com">// @HiltAndroidApp</span>
+├── di/                               <span class="com">// Hilt modules</span>
+│   ├── DataModule.kt
+│   ├── NetworkModule.kt
+│   └── RepositoryModule.kt
+├── data/
+│   ├── local/
+│   │   ├── AppDatabase.kt            <span class="com">// Room DB + DAOs</span>
+│   │   ├── UserDao.kt
+│   │   └── entity/
+│   ├── remote/
+│   │   ├── UserApi.kt                <span class="com">// Retrofit interface</span>
+│   │   └── dto/                      <span class="com">// network DTOs</span>
+│   ├── repository/
+│   │   └── UserRepositoryImpl.kt
+│   └── mapper/                       <span class="com">// DTO ↔ domain mapping</span>
+├── domain/
+│   ├── model/
+│   │   └── User.kt                   <span class="com">// pure Kotlin domain model</span>
+│   ├── repository/
+│   │   └── UserRepository.kt         <span class="com">// interface</span>
+│   └── usecase/                      <span class="com">// optional</span>
+│       └── GetUserUseCase.kt
+├── ui/
+│   ├── theme/                        <span class="com">// Compose theme</span>
+│   ├── common/                       <span class="com">// reusable Composables</span>
+│   ├── user/
+│   │   ├── UserScreen.kt
+│   │   ├── UserViewModel.kt
+│   │   └── UserUiState.kt
+│   └── feed/
+│       ├── FeedScreen.kt
+│       ├── FeedViewModel.kt
+│       └── FeedUiState.kt
+└── MainActivity.kt                   <span class="com">// single activity hosting NavHost</span></code></pre>
+
+<!-- =============== 8. MVI =============== -->
+<h2 id="s8">8. MVI — Model-View-Intent (state-machine architecture)</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">       ┌─────────────────────────────────────────────────┐
+       │                                                 │
+       │                                                 ▼
+┌──────────────┐  Intent  ┌──────────────────────────────────────┐
+│     VIEW     │─────────▶│             VIEWMODEL                │
+│  renders     │          │                                      │
+│  UiState     │          │  ┌───────────────────────────┐      │
+│              │◀─────────│  │  reduce(state, intent)     │      │
+└──────────────┘ UiState  │  │       = newState            │      │
+                          │  └───────────────────────────┘      │
+                          │                                      │
+                          │  ┌───────────────────────────┐      │
+                          │  │ UiState (immutable)        │      │
+                          │  │ MutableStateFlow&lt;UiState&gt;  │      │
+                          │  └───────────────────────────┘      │
+                          │                                      │
+                          │  side effects (one-shot events)     │
+                          └──────┬──────────────────────────────┘
+                                 │
+                                 ▼
+                          ┌──────────────┐
+                          │  Repository  │
+                          └──────────────┘</div>
+
+<h3>Origin / inspiration</h3>
+<p>MVI is <strong>Redux for Android</strong>. Redux (2015) came from Elm Architecture (2012). Both are functional-programming-inspired: model your UI as a finite state machine, where the only way to change state is to emit a typed intent that's reduced into a new state. The thought process: <em>"In MVVM with many StateFlows, race conditions and missed transitions are easy. What if state changes were forced through ONE function — reduce(state, intent) → newState? Then every transition is explicit, time-travel debugging is possible, and the state machine catches missed cases at compile time."</em></p>
+
+<p>Pure functional roots: <strong>state monads</strong> in Haskell, <strong>actor model</strong> in Erlang. Same idea: isolate state mutation behind a controlled interface.</p>
+
+<h3>Sample code</h3>
+<pre><code><span class="com">// 1. UI state — single immutable object</span>
+<span class="kw">data class</span> UserUiState(
+    <span class="kw">val</span> loading: Boolean = <span class="kw">false</span>,
+    <span class="kw">val</span> user: User? = <span class="kw">null</span>,
+    <span class="kw">val</span> error: String? = <span class="kw">null</span>
+)
+
+<span class="com">// 2. Intent — every possible user/system action</span>
+<span class="kw">sealed interface</span> UserIntent {
+    <span class="kw">data class</span> Load(<span class="kw">val</span> id: String) : UserIntent
+    <span class="kw">data object</span> Refresh : UserIntent
+    <span class="kw">data class</span> UpdateName(<span class="kw">val</span> name: String) : UserIntent
+    <span class="kw">data object</span> Save : UserIntent
+}
+
+<span class="com">// 3. SideEffect — one-shot events the View should react to (navigation, toast)</span>
+<span class="kw">sealed interface</span> UserEffect {
+    <span class="kw">data class</span> Navigate(<span class="kw">val</span> route: String) : UserEffect
+    <span class="kw">data class</span> ShowToast(<span class="kw">val</span> message: String) : UserEffect
+}
+
+<span class="com">// 4. ViewModel — single source of truth, single reducer</span>
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> UserViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: UserRepository
+) : ViewModel() {
+    <span class="kw">private val</span> _state = MutableStateFlow(UserUiState())
+    <span class="kw">val</span> state: StateFlow&lt;UserUiState&gt; = _state.asStateFlow()
+
+    <span class="kw">private val</span> _effects = Channel&lt;UserEffect&gt;(Channel.BUFFERED)
+    <span class="kw">val</span> effects: Flow&lt;UserEffect&gt; = _effects.receiveAsFlow()
+
+    <span class="kw">fun</span> dispatch(intent: UserIntent) {
+        <span class="com">// reduce synchronously, then handle async side effects</span>
+        _state.update { reduce(it, intent) }
+        handleSideEffects(intent)
+    }
+
+    <span class="kw">private fun</span> reduce(s: UserUiState, i: UserIntent): UserUiState = <span class="kw">when</span> (i) {
+        <span class="kw">is</span> UserIntent.Load        -&gt; s.copy(loading = <span class="kw">true</span>, error = <span class="kw">null</span>)
+        UserIntent.Refresh        -&gt; s.copy(loading = <span class="kw">true</span>, error = <span class="kw">null</span>)
+        <span class="kw">is</span> UserIntent.UpdateName  -&gt; s.copy(user = s.user?.copy(name = i.name))
+        UserIntent.Save           -&gt; s.copy(loading = <span class="kw">true</span>)
+    }
+
+    <span class="kw">private fun</span> handleSideEffects(i: UserIntent) = viewModelScope.launch {
+        <span class="kw">when</span> (i) {
+            <span class="kw">is</span> UserIntent.Load -&gt; runCatching { repo.getUser(i.id) }
+                .onSuccess { _state.update { s -&gt; s.copy(loading = <span class="kw">false</span>, user = it) } }
+                .onFailure { _state.update { s -&gt; s.copy(loading = <span class="kw">false</span>, error = it.message) } }
+            UserIntent.Save -&gt; { repo.save(_state.value.user!!); _effects.send(UserEffect.ShowToast(<span class="str">"Saved"</span>)) }
+            <span class="kw">else</span> -&gt; { <span class="com">// no async side effect</span> }
+        }
+    }
+}
+
+<span class="com">// 5. View (Compose) — renders state, dispatches intents</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> UserScreen(vm: UserViewModel = hiltViewModel(), nav: NavController) {
+    <span class="kw">val</span> state <span class="kw">by</span> vm.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        vm.effects.collect { effect -&gt;
+            <span class="kw">when</span> (effect) {
+                <span class="kw">is</span> UserEffect.Navigate  -&gt; nav.navigate(effect.route)
+                <span class="kw">is</span> UserEffect.ShowToast -&gt; toast(effect.message)
+            }
+        }
+    }
+
+    Column {
+        <span class="kw">if</span> (state.loading) CircularProgressIndicator()
+        state.user?.let {
+            TextField(it.name, onValueChange = { vm.dispatch(UserIntent.UpdateName(it)) })
+            Button(onClick = { vm.dispatch(UserIntent.Save) }) { Text(<span class="str">"Save"</span>) }
+        }
+        state.error?.let { Text(it) }
+    }
+}</code></pre>
+
+<h3>Pros and cons</h3>
+<div class="two-col">
+  <div class="col-card good"><strong>Pros</strong>
+    <ul>
+      <li>State is single + immutable; impossible to have inconsistent UI</li>
+      <li>Every transition is explicit and traceable (great for time-travel debugging)</li>
+      <li>Reducer is a pure function — trivially testable</li>
+      <li>Compile-time safety: sealed Intent forces handling of every action</li>
+      <li>Side effects clearly separated from state changes</li>
+      <li>Concurrent intents serialize through the reducer — no race conditions</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Cons</strong>
+    <ul>
+      <li>More boilerplate per screen (Intent + Effect + UiState + reducer)</li>
+      <li>Overkill for simple screens (a 3-field profile screen doesn't need a state machine)</li>
+      <li>"How do I emit an event from inside a side effect" question — needs Channel/SharedFlow</li>
+      <li>Newcomers struggle with the rigid structure</li>
+      <li>If reducer becomes huge, you're back to god-class problem (split per feature)</li>
+    </ul>
+  </div>
+</div>
+
+<h3>When MVI shines</h3>
+<ul>
+  <li>Complex async screens with many states (chat, video player, multi-step checkout)</li>
+  <li>Screens with many concurrent inputs (typing + scrolling + network update + push)</li>
+  <li>Teams that want strict state-machine guarantees</li>
+  <li>Apps that need detailed analytics on user actions (every Intent = an event)</li>
+</ul>
+
+<h3>Common mistakes</h3>
+<ul>
+  <li><strong>Reducer doing async work</strong> — reducer must be pure. Side effects go in a separate function called after reduce.</li>
+  <li><strong>Mutating UiState</strong> — UiState must be immutable (data class with vals). Always emit a new copy.</li>
+  <li><strong>Single SharedFlow for state AND events</strong> — separate them. State = StateFlow. Events = Channel/SharedFlow with replay=0.</li>
+  <li><strong>One giant Intent sealed class for the whole app</strong> — split per screen. Each screen has its own UiState, Intent, Effect.</li>
+  <li><strong>Skipping Effects entirely</strong> — then you're back to events-as-state problem (toast appears twice on rotation).</li>
+</ul>
+
+<h3>Where things fit in MVI</h3>
+<p>Same as MVVM (§7) for everything below the ViewModel — Repository, DataSources, WorkManager, Services, ContentProvider, DI. The difference is purely in how the ViewModel exposes state to the View.</p>
+
+<h3>Package structure (MVI per feature)</h3>
+<pre><code>ui/user/
+├── UserScreen.kt                <span class="com">// @Composable, observes state, dispatches intents</span>
+├── UserViewModel.kt             <span class="com">// reducer + side effect handler</span>
+├── UserUiState.kt               <span class="com">// data class</span>
+├── UserIntent.kt                <span class="com">// sealed interface</span>
+├── UserEffect.kt                <span class="com">// sealed interface (one-shot events)</span>
+└── UserReducer.kt               <span class="com">// pure function (optional separate file)</span></code></pre>
+
+<!-- =============== 9. CLEAN ARCHITECTURE =============== -->
+<h2 id="s9">9. Clean Architecture — adding the Domain layer</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">  ┌──────────────────────────────────────────────────┐
+  │  PRESENTATION (UI layer)                          │
+  │  Composables, ViewModels, UiState, Intents       │
+  │  - knows about Android, Compose                  │
+  └──────────────────┬───────────────────────────────┘
+                     │ depends on
+                     ▼
+  ┌──────────────────────────────────────────────────┐
+  │  DOMAIN (business rules)                          │
+  │  UseCases, Domain Models, Repository INTERFACES   │
+  │  - PURE Kotlin (no Android, Retrofit, Room)       │
+  └──────────────────▲───────────────────────────────┘
+                     │ implements
+                     │
+  ┌──────────────────┴───────────────────────────────┐
+  │  DATA (implementations)                           │
+  │  Repository IMPLs, DAOs, Apis, DTOs, Mappers      │
+  │  - knows about Room, Retrofit, DataStore          │
+  └──────────────────────────────────────────────────┘</div>
+
+<h3>Origin / inspiration</h3>
+<p>Robert C. Martin's <strong>Clean Architecture</strong> (2012, formalized in his 2017 book). Generalizes earlier ideas: <strong>Hexagonal Architecture / Ports and Adapters</strong> (Alistair Cockburn 2005), <strong>Onion Architecture</strong> (Jeffrey Palermo 2008). Common theme: <em>"Business rules are the most stable part of an app — they shouldn't depend on UI or persistence details. Invert dependencies so the outer layers (UI, DB) depend on the inner layer (business), not vice versa."</em></p>
+
+<h3>Sample UseCase</h3>
+<pre><code><span class="com">// Domain layer — pure Kotlin, no Android imports</span>
+<span class="kw">class</span> GetUserWithOrdersUseCase @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> userRepo: UserRepository,
+    <span class="kw">private val</span> orderRepo: OrderRepository
+) {
+    <span class="kw">suspend</span> operator <span class="kw">fun</span> invoke(userId: String): UserWithOrders = coroutineScope {
+        <span class="kw">val</span> user = async { userRepo.getUser(userId) }
+        <span class="kw">val</span> orders = async { orderRepo.getOrdersFor(userId) }
+        UserWithOrders(user.<span class="kw">await</span>(), orders.<span class="kw">await</span>())
+    }
+}
+
+<span class="com">// ViewModel uses the UseCase instead of multiple repos</span>
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> ProfileViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> getUserWithOrders: GetUserWithOrdersUseCase
+) : ViewModel() {
+    <span class="kw">fun</span> load(id: String) = viewModelScope.launch {
+        <span class="kw">val</span> data = getUserWithOrders(id)
+        ...
+    }
+}</code></pre>
+
+<h3>When to add a Domain layer</h3>
+<table>
+  <thead><tr><th>Add UseCases when</th><th>Skip UseCases when</th></tr></thead>
+  <tbody>
+    <tr><td>Same business operation reused across multiple screens</td><td>Single screen calls Repository in one place</td></tr>
+    <tr><td>Logic combines multiple Repositories</td><td>UseCase would be a 1-line wrapper around Repo</td></tr>
+    <tr><td>You want to share business rules across Android + iOS via KMP</td><td>Small CRUD app — overhead not worth it</td></tr>
+    <tr><td>Logic needs heavy unit testing in isolation from data sources</td><td>You can already mock the Repo for the same coverage</td></tr>
+  </tbody>
+</table>
+
+<h3>Pros and cons</h3>
+<div class="two-col">
+  <div class="col-card good"><strong>Pros</strong>
+    <ul>
+      <li>Business rules isolated from UI and data details</li>
+      <li>Trivially testable on JVM</li>
+      <li>Same UseCases reusable across screens / platforms (KMP)</li>
+      <li>Forces clean dependency graph</li>
+      <li>Onboarding: new devs find logic in obvious places</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Cons</strong>
+    <ul>
+      <li>Boilerplate — each operation gets a UseCase class</li>
+      <li>Many UseCases are 1-line wrappers — pure ceremony</li>
+      <li>Over-abstraction is a real risk</li>
+      <li>Beginners see the layers as bureaucracy</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 10. MULTI-MODULE =============== -->
+<h2 id="s10">10. Multi-module architecture</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">:app                          (thin glue: NavHost, Application class, theme)
+   │
+   ├──:core
+   │    ├──:network            (OkHttp, Retrofit setup, common DTOs)
+   │    ├──:database           (Room DB, DAOs, type converters)
+   │    ├──:design-system      (Composables, theme, colors, typography)
+   │    ├──:common             (utilities, extensions)
+   │    └──:domain             (shared domain models, base interfaces)
+   │
+   ├──:feature
+   │    ├──:home               (HomeScreen + ViewModel + UseCases + Repo + Data)
+   │    ├──:profile            (ProfileScreen + ...)
+   │    ├──:settings
+   │    └──:checkout
+   │
+   └──:test-utils              (shared fakes, test rules)</div>
+
+<h3>Why split into modules</h3>
+<table>
+  <thead><tr><th>Benefit</th><th>How it works</th></tr></thead>
+  <tbody>
+    <tr><td>Faster builds</td><td>Gradle compiles modules in parallel; touching one module doesn't recompile others</td></tr>
+    <tr><td>Enforced architecture</td><td>One module can't reach into another's <code>internal</code> classes; only public API is exposed</td></tr>
+    <tr><td>Ownership clarity</td><td>Each module has clear ownership; team boundaries map to module boundaries</td></tr>
+    <tr><td>Dynamic feature delivery</td><td>Modules can be marked as <code>com.android.dynamic-feature</code>; downloaded on demand from Play</td></tr>
+    <tr><td>KMP-ready</td><td>Only modules that need to be shared go to KMP; the rest stay Android-only</td></tr>
+  </tbody>
+</table>
+
+<h3>Dependency rules</h3>
+<ul>
+  <li><strong>:app</strong> depends on every feature</li>
+  <li><strong>:feature/*</strong> depends on <strong>:core/*</strong> only — never on other features</li>
+  <li><strong>:core/*</strong> modules are leaves — no upward dependencies</li>
+  <li>Cross-feature navigation goes through a "navigator" interface defined in :core, implemented in :app</li>
+</ul>
+
+<h3>Common mistake</h3>
+<p>Over-modularizing: 50+ tiny modules → Gradle's <strong>configuration phase</strong> becomes the bottleneck. Sweet spot for typical apps: 10-30 modules.</p>
+
+<!-- =============== 11. KMP =============== -->
+<h2 id="s11">11. KMP-ready architecture (sharing logic with iOS)</h2>
+
+<h3>Diagram</h3>
+<div class="diagram">  ┌──────────────────────────┐         ┌──────────────────────────┐
+  │   ANDROID app            │         │   iOS app                │
+  │  Compose UI              │         │  SwiftUI                 │
+  │  Hilt DI                 │         │  Manual / Koin DI        │
+  │  androidMain source set  │         │  iosMain source set      │
+  └────────────┬─────────────┘         └─────────────┬────────────┘
+               │                                     │
+               └─────────────┬───────────────────────┘
+                             ▼
+                ┌────────────────────────────┐
+                │    SHARED MODULE (KMP)     │
+                │                            │
+                │  commonMain:               │
+                │    Domain (UseCases)       │
+                │    Repository INTERFACES   │
+                │    Repository IMPLS        │
+                │    Models                  │
+                │    Ktor (HTTP)             │
+                │    SQLDelight (DB)         │
+                │    kotlinx.serialization   │
+                │    kotlinx.coroutines      │
+                │                            │
+                │  androidMain:              │
+                │    Android-specific impls  │
+                │  iosMain:                  │
+                │    iOS-specific impls      │
+                └────────────────────────────┘</div>
+
+<h3>What's KMP-friendly per architecture</h3>
+<table>
+  <thead><tr><th>Layer</th><th>KMP-shared?</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>UI (View / Composables / SwiftUI)</td><td>Mostly per-platform</td><td>Compose Multiplatform on iOS works but native UI often preferred</td></tr>
+    <tr><td>ViewModel</td><td>Can be shared (in commonMain) — needs <code>moko-mvvm</code> or your own</td><td>Most projects keep VMs per-platform; share UseCases instead</td></tr>
+    <tr><td>UseCases</td><td>YES — pure Kotlin, ideal for sharing</td><td>The biggest KMP win</td></tr>
+    <tr><td>Repository interface + impl</td><td>YES (in commonMain)</td><td>Use Ktor + SQLDelight + kotlinx.serialization</td></tr>
+    <tr><td>Domain models</td><td>YES</td><td>Pure data classes, no platform deps</td></tr>
+    <tr><td>Network (HTTP)</td><td>YES via <strong>Ktor</strong></td><td>Replaces Retrofit in shared code</td></tr>
+    <tr><td>Local DB</td><td>YES via <strong>SQLDelight</strong> (or Room KMP 2.7+)</td><td>SQL-first; generates type-safe queries</td></tr>
+    <tr><td>JSON</td><td>YES via <strong>kotlinx.serialization</strong></td><td>Replaces Moshi/Gson</td></tr>
+    <tr><td>DI</td><td>YES via <strong>Koin</strong> (Hilt is Android-only)</td><td>For mixed projects: Hilt on Android side, Koin in shared</td></tr>
+    <tr><td>Coroutines / Flow</td><td>YES — kotlinx.coroutines is KMP</td><td>Full support including Flow and Channels</td></tr>
+    <tr><td>WorkManager / ForegroundService</td><td>NO — Android-specific</td><td>Trigger from shared, but the actual code stays Android</td></tr>
+    <tr><td>ContentProvider</td><td>NO — Android-only</td><td>Wrap behind a shared interface; impl in androidMain</td></tr>
+  </tbody>
+</table>
+
+<h3>Pattern: <code>expect / actual</code> for platform APIs</h3>
+<pre><code><span class="com">// commonMain/src/Storage.kt</span>
+<span class="kw">expect class</span> Storage {
+    <span class="kw">fun</span> save(key: String, value: String)
+    <span class="kw">fun</span> get(key: String): String?
+}
+
+<span class="com">// androidMain/src/Storage.kt</span>
+<span class="kw">actual class</span> Storage(<span class="kw">val</span> ctx: Context) {
+    <span class="kw">private val</span> prefs = ctx.getSharedPreferences(<span class="str">"app"</span>, Context.MODE_PRIVATE)
+    <span class="kw">actual fun</span> save(key: String, value: String) { prefs.edit().putString(key, value).apply() }
+    <span class="kw">actual fun</span> get(key: String) = prefs.getString(key, <span class="kw">null</span>)
+}
+
+<span class="com">// iosMain/src/Storage.kt</span>
+<span class="kw">actual class</span> Storage {
+    <span class="kw">actual fun</span> save(key: String, value: String) {
+        NSUserDefaults.standardUserDefaults.setObject(value, key)
+    }
+    <span class="kw">actual fun</span> get(key: String) = NSUserDefaults.standardUserDefaults.stringForKey(key)
+}</code></pre>
+
+<!-- =============== 12. MODERN PATTERNS =============== -->
+<h2 id="s12">12. Modern patterns — Voyager, Decompose, Circuit</h2>
+
+<table>
+  <thead><tr><th>Library</th><th>What it adds</th><th>When use</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Voyager</strong></td><td>Compose-first navigation + screen-level state container; tabs, bottom-sheets, stacks. Replaces Compose Navigation for some teams.</td><td>Compose-only apps wanting simpler navigation</td></tr>
+    <tr><td><strong>Decompose</strong></td><td>KMP-friendly state management with parent-child component trees, predictable lifecycle. Pairs with Compose / SwiftUI / Web.</td><td>KMP-shared UI logic (decoupled from UI framework)</td></tr>
+    <tr><td><strong>Circuit (Slack)</strong></td><td>Compose-first MVI-ish pattern: each screen has a Presenter (Composable!) + UI Composable + State + Event. Strong type-safety, automatic reset on navigation.</td><td>Teams who want MVI's guarantees with less boilerplate</td></tr>
+    <tr><td><strong>Molecule</strong></td><td>Cash App's library: write Presenters as <code>@Composable</code> functions producing StateFlow. Reuse Compose's snapshot system for state computation outside the UI.</td><td>Reactive Presenter logic without writing reducers by hand</td></tr>
+  </tbody>
+</table>
+
+<h3>Circuit example (high-level)</h3>
+<pre><code><span class="com">// Circuit's Presenter is itself a Composable!</span>
+<span class="kw">class</span> UserPresenter(<span class="kw">val</span> repo: UserRepository) : Presenter&lt;UserState&gt; {
+    <span class="anno">@Composable</span>
+    <span class="kw">override fun</span> present(): UserState {
+        <span class="kw">var</span> user <span class="kw">by</span> remember { mutableStateOf&lt;User?&gt;(<span class="kw">null</span>) }
+        LaunchedEffect(Unit) { user = repo.getUser() }
+        <span class="kw">return</span> UserState(user) { event -&gt;
+            <span class="kw">when</span> (event) {
+                <span class="kw">is</span> UserEvent.Refresh -&gt; user = repo.getUser()
+            }
+        }
+    }
+}</code></pre>
+
+<!-- =============== 13. WHERE THINGS FIT MATRIX =============== -->
+<h2 id="s13">13. Where things fit — the master matrix</h2>
+
+<p>Same components, slightly different placement across architectures. Reference table for "where do I put X?":</p>
+
+<table>
+  <thead><tr><th>Component</th><th>MVP</th><th>MVVM</th><th>MVI</th><th>Clean (added)</th></tr></thead>
+  <tbody>
+    <tr><td>UI rendering</td><td>Activity (View)</td><td>Activity / Composable</td><td>Activity / Composable</td><td>Same as inner</td></tr>
+    <tr><td>UI state</td><td>Presenter fields</td><td>StateFlow&lt;UiState&gt; in ViewModel</td><td>Single immutable UiState in ViewModel</td><td>Same</td></tr>
+    <tr><td>Business orchestration</td><td>Presenter</td><td>ViewModel</td><td>ViewModel + Reducer</td><td>UseCase</td></tr>
+    <tr><td>Data fetching</td><td>Repository</td><td>Repository</td><td>Repository</td><td>Repository (impl); interface in Domain</td></tr>
+    <tr><td>Local cache</td><td>Room DAO via Repository</td><td>Same</td><td>Same</td><td>Same</td></tr>
+    <tr><td>Network</td><td>Retrofit/Ktor via Repository</td><td>Same</td><td>Same</td><td>Same</td></tr>
+    <tr><td>Preferences</td><td>DataStore via Repository</td><td>Same</td><td>Same</td><td>Same</td></tr>
+    <tr><td>Background work</td><td>WorkManager — enqueued from Presenter</td><td>Enqueued from ViewModel or Repository</td><td>Enqueued from side-effect handler or Repository</td><td>Enqueued from UseCase</td></tr>
+    <tr><td>Long-running visible work</td><td>ForegroundService started from Activity / Presenter</td><td>Started from Application or via a controller VM</td><td>Same as MVVM</td><td>Same</td></tr>
+    <tr><td>System events</td><td>BroadcastReceiver → Presenter</td><td>BroadcastReceiver → Repository → ViewModel observes Flow</td><td>Same as MVVM (then dispatch as Intent)</td><td>Same</td></tr>
+    <tr><td>ContentProvider integration</td><td>Wrap in DataSource → Repository → Presenter</td><td>Same → Repository → ViewModel</td><td>Same</td><td>Same</td></tr>
+    <tr><td>DI</td><td>Manual or Hilt with field injection in Activity</td><td>Hilt: <code>@HiltViewModel</code> for VMs, <code>@Module</code> for repos</td><td>Same as MVVM</td><td>Same; UseCases get <code>@Inject constructor</code></td></tr>
+    <tr><td>One-shot events (toast, navigate)</td><td>Direct method on View</td><td>SharedFlow&lt;Event&gt; with replay=0</td><td>Sealed Effect class via Channel</td><td>Same</td></tr>
+    <tr><td>Navigation</td><td>Activity calls <code>startActivity</code> from View handler</td><td>Compose Nav from View; navigation events from VM via SharedFlow</td><td>Effect → handled in View</td><td>Same</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 14. COMPARISON =============== -->
+<h2 id="s14">14. Comparison — when to prefer which</h2>
+
+<table>
+  <thead><tr><th></th><th>MVP</th><th>MVVM</th><th>MVI</th><th>Clean (+ MVVM/MVI)</th></tr></thead>
+  <tbody>
+    <tr><td>Boilerplate</td><td>Medium (View interface)</td><td>Low</td><td>High (Intent + Effect + Reducer)</td><td>Higher (UseCases)</td></tr>
+    <tr><td>Survives rotation</td><td>No (manual state save)</td><td>Yes (built-in)</td><td>Yes (built-in)</td><td>Yes</td></tr>
+    <tr><td>Testability</td><td>Excellent</td><td>Excellent</td><td>Best (pure reducer)</td><td>Best</td></tr>
+    <tr><td>Reactive UI fit</td><td>Manual</td><td>Native (StateFlow + Compose)</td><td>Native</td><td>Native</td></tr>
+    <tr><td>Compose-friendly</td><td>Awkward</td><td>First-class</td><td>First-class</td><td>First-class</td></tr>
+    <tr><td>State machine guarantees</td><td>None</td><td>Weak</td><td>Strong (sealed Intents)</td><td>Strong (per-screen)</td></tr>
+    <tr><td>KMP-friendly</td><td>OK (Presenter is plain Kotlin)</td><td>Need wrappers for ViewModel</td><td>Excellent (reducer is pure Kotlin)</td><td>Excellent (UseCases are KMP)</td></tr>
+    <tr><td>Java codebase OK?</td><td>Yes</td><td>Awkward (Coroutines needed)</td><td>Awkward</td><td>OK with refactor</td></tr>
+    <tr><td>Best for</td><td>Legacy apps; Java codebases</td><td>Most modern Android apps</td><td>Complex async screens, large teams</td><td>Multi-platform, big enterprise apps</td></tr>
+  </tbody>
+</table>
+
+<h3>Decision rules</h3>
+<ol>
+  <li><strong>Greenfield Compose app, small team?</strong> → MVVM. Most efficient.</li>
+  <li><strong>Greenfield Compose app, complex screens (chat, video, multi-step forms)?</strong> → MVI for those screens; MVVM for simple screens. Mix is fine.</li>
+  <li><strong>Targeting iOS too via KMP?</strong> → Clean Architecture in shared module + your choice of MVVM/MVI per platform UI.</li>
+  <li><strong>Legacy Java codebase?</strong> → MVP for incremental migration; introduce ViewModel slowly.</li>
+  <li><strong>Multi-team enterprise app?</strong> → Multi-module + Clean Architecture + MVVM/MVI per feature module.</li>
+</ol>
+
+<!-- =============== 15. STARTING FRESH =============== -->
+<h2 id="s15">15. Starting a fresh project — step by step</h2>
+
+<h3>For MVVM (default for new apps)</h3>
+<ol>
+  <li>Create a single-module Android Studio project with Compose template.</li>
+  <li>Add dependencies: Hilt, Room, Retrofit, Moshi/kotlinx.serialization, Coroutines, ViewModel-Compose, Navigation-Compose, lifecycle-runtime-compose.</li>
+  <li>Set up Hilt: <code>@HiltAndroidApp</code> on Application; create <code>di/</code> package with NetworkModule, DatabaseModule, RepositoryModule.</li>
+  <li>Define your <code>data/</code> and <code>domain/</code> packages (see structure in §7).</li>
+  <li>Create one feature folder under <code>ui/</code> with: <code>Screen</code> (Composable), <code>ViewModel</code>, <code>UiState</code>.</li>
+  <li>Write a UseCase only when you have a reason — don't pre-build the abstraction.</li>
+  <li>Set up Compose Navigation with type-safe routes.</li>
+  <li>Add a small set of design-system Composables (<code>AppButton</code>, <code>AppText</code>) to keep visuals consistent.</li>
+  <li>Write your first ViewModel test using runTest + Turbine.</li>
+  <li>Ship a Baseline Profile early — perf compounds.</li>
+</ol>
+
+<h3>For MVI</h3>
+<ol>
+  <li>Same scaffolding as MVVM (steps 1-4).</li>
+  <li>Per feature folder: add <code>UiState</code> (data class), <code>Intent</code> (sealed interface), <code>Effect</code> (sealed interface), <code>Reducer</code>.</li>
+  <li>ViewModel exposes <code>state: StateFlow&lt;UiState&gt;</code>, <code>effects: Flow&lt;Effect&gt;</code>, and a <code>dispatch(intent)</code> function.</li>
+  <li>Write a base <code>MviViewModel&lt;State, Intent, Effect&gt;</code> abstract class to avoid repeating boilerplate per screen.</li>
+  <li>Composable: <code>val state by vm.state.collectAsStateWithLifecycle()</code>; <code>LaunchedEffect</code> to collect <code>vm.effects</code>.</li>
+  <li>Test the reducer in isolation as a pure function — no coroutines required.</li>
+</ol>
+
+<h3>For multi-module</h3>
+<ol>
+  <li>Start with one app module + a few core modules (network, database, design-system, common).</li>
+  <li>Extract a feature into a <code>:feature:foo</code> module when:
+    <ul>
+      <li>It has &gt; ~5-10 files</li>
+      <li>It can be developed independently (no cross-feature dependencies)</li>
+      <li>You'd benefit from independent compilation in CI</li>
+    </ul>
+  </li>
+  <li>Use Gradle Version Catalog (<code>libs.versions.toml</code>) for shared dependency versions.</li>
+  <li>Define each feature's public surface in <code>:feature:foo:api</code> if you want strict separation; the impl module depends on the api.</li>
+</ol>
+
+<!-- =============== 16. SOLID INTERVIEW EXAMPLES =============== -->
+<h2 id="s16">16. SOLID interview "why this not that" — drill-down examples</h2>
+
+<h3>Q: "Why use a Repository instead of calling Retrofit directly from the ViewModel?"</h3>
+<ul>
+  <li><strong>SRP:</strong> ViewModel becomes responsible for both UI state AND data sourcing — two reasons to change.</li>
+  <li><strong>DIP:</strong> ViewModel depends on a concrete library (Retrofit). Replacing it (e.g., Ktor) means rewriting all ViewModels.</li>
+  <li><strong>OCP:</strong> Adding a cache means modifying every ViewModel. With a Repository, you change one place.</li>
+  <li><strong>Testing:</strong> Faking Retrofit requires MockWebServer. Faking a Repository interface is one class.</li>
+</ul>
+
+<h3>Q: "Why interface for the Repository in domain, impl in data?"</h3>
+<ul>
+  <li><strong>DIP:</strong> Domain (high-level policy) shouldn't depend on Data (low-level details). Putting the interface in Domain inverts the dependency arrow.</li>
+  <li><strong>KMP:</strong> If domain is shared, the interface can be in commonMain while the impl can be platform-specific.</li>
+  <li><strong>Testing:</strong> UseCase test injects a fake without pulling in Room/Retrofit.</li>
+</ul>
+
+<h3>Q: "Why prefer composition over inheritance?"</h3>
+<ul>
+  <li><strong>LSP problems</strong> show up frequently with deep inheritance — a subclass changes parent behavior in a surprising way.</li>
+  <li><strong>Compose Modifiers</strong> are a textbook example: instead of <code>RoundedClickableBorderedView extends View</code>, you compose <code>Modifier.background().clip().border().clickable()</code>.</li>
+  <li>Inheritance hard-codes the relationship at compile time. Composition lets you change behavior at runtime.</li>
+</ul>
+
+<h3>Q: "Why use sealed classes for UiState instead of multiple booleans?"</h3>
+<ul>
+  <li><strong>SRP:</strong> A loading boolean + error boolean + data field forces every consumer to interpret the combination — and they can disagree about what "loading=true && error=null && data=null" means.</li>
+  <li><strong>Type safety:</strong> Sealed class forces exhaustive <code>when</code> — you can't forget the Error state.</li>
+  <li><strong>State machine guarantees:</strong> The set of valid states is finite and named.</li>
+</ul>
+
+<h3>Q: "Why inject the dispatcher instead of using <code>Dispatchers.IO</code> directly?"</h3>
+<ul>
+  <li><strong>DIP + testability:</strong> Tests can inject a <code>StandardTestDispatcher</code> for virtual time and deterministic execution.</li>
+  <li>Without injection, your test's coroutines run on the real thread pool — slow, non-deterministic, and you can't advance time.</li>
+</ul>
+
+<h3>Q: "Why hoist state in Compose?"</h3>
+<ul>
+  <li><strong>SRP:</strong> Stateless Composable does one thing — render. State management is the caller's responsibility.</li>
+  <li><strong>Reusability:</strong> A stateless Composable is testable, previewable, and reusable in different contexts.</li>
+  <li><strong>OCP:</strong> Adding new state behavior (validation, persistence) is done at the call site without modifying the Composable.</li>
+</ul>
+
+<h3>Q: "Why use Flow instead of LiveData?"</h3>
+<ul>
+  <li><strong>SRP:</strong> LiveData is Android-coupled. Flow is pure Kotlin → KMP-friendly, testable on JVM without Android.</li>
+  <li>Flow has a richer operator set (debounce, flatMapLatest, combine, etc.).</li>
+  <li>StateFlow + collectAsStateWithLifecycle gives the same lifecycle awareness as LiveData but composes better with coroutines.</li>
+</ul>
+
+<!-- =============== 17. RELATED PATTERNS =============== -->
+<h2 id="s17">17. Related patterns worth knowing</h2>
+
+<table>
+  <thead><tr><th>Pattern</th><th>Where you see it in Android</th></tr></thead>
+  <tbody>
+    <tr><td>Repository</td><td>Standard data abstraction (DDD-inspired). Hides data sources behind a domain-friendly API.</td></tr>
+    <tr><td>UseCase / Interactor</td><td>One operation = one class. Keeps business rules testable and composable.</td></tr>
+    <tr><td>Observer</td><td>StateFlow, SharedFlow, LiveData, callbacks — UI subscribes to changes.</td></tr>
+    <tr><td>Strategy</td><td>OkHttp Interceptors, Compose Modifiers, sort/filter strategies. Pluggable behavior behind an interface.</td></tr>
+    <tr><td>Singleton</td><td>Hilt's <code>@Singleton</code>, Kotlin <code>object</code>. App-scoped components (DB, OkHttp client).</td></tr>
+    <tr><td>Factory</td><td>ViewModelProvider.Factory (pre-Hilt), RecyclerView.Adapter.onCreateViewHolder.</td></tr>
+    <tr><td>Builder</td><td>OkHttpClient.Builder, NotificationCompat.Builder, Retrofit.Builder.</td></tr>
+    <tr><td>Adapter</td><td>RecyclerView.Adapter — bridges data list to View recycling.</td></tr>
+    <tr><td>Decorator</td><td>OkHttp Interceptors wrap each other; Compose Modifiers wrap composition.</td></tr>
+    <tr><td>Chain of Responsibility</td><td>OkHttp Interceptor chain; Android touch event dispatch.</td></tr>
+    <tr><td>Proxy</td><td>Retrofit's dynamic proxy generates HTTP-calling implementations of your interfaces.</td></tr>
+    <tr><td>Template Method</td><td>Activity/Fragment lifecycle hooks; RecyclerView.Adapter's onCreate/onBind.</td></tr>
+    <tr><td>State Pattern</td><td>Sealed UiState, ATM/VendingMachine state machines.</td></tr>
+    <tr><td>Mediator</td><td>ViewModel mediates between View and Repository; NavController mediates between screens.</td></tr>
+    <tr><td>Memento</td><td>onSaveInstanceState / SavedStateHandle.</td></tr>
+    <tr><td>Facade</td><td>Repository hides multiple data sources; <code>Glide.with(...).load(...).into(...)</code>.</td></tr>
+    <tr><td>Flyweight</td><td>RecyclerView.RecycledViewPool, BitmapPool, Drawable.ConstantState.</td></tr>
+    <tr><td>Command</td><td>Runnable, Intent, WorkRequest — encapsulate an action as an object.</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 18. COMMON MISTAKES ALL ARCHITECTURES =============== -->
+<h2 id="s18">18. Common mistakes across all architectures</h2>
+
+<div class="two-col">
+  <div class="col-card bad"><strong>Architecture mistakes</strong>
+    <ul>
+      <li>Calling Repository from the View directly (skipping VM/Presenter)</li>
+      <li>Putting Android Context in domain/data layer (breaks JVM testing)</li>
+      <li>Exposing Room <code>@Entity</code> directly to the UI (couples UI to DB schema)</li>
+      <li>Multiple Repository singletons reading the same data without coordination</li>
+      <li>Using <code>GlobalScope</code> instead of viewModelScope</li>
+      <li>One ViewModel for the entire app</li>
+      <li>Mixing layers: a UseCase that reads a SharedPreferences directly</li>
+      <li>Returning Flow&lt;Result&gt; from Room (rare correct case; usually a smell)</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Pattern misconceptions</strong>
+    <ul>
+      <li>"MVVM means data binding" — no. MVVM = ViewModel as observable state holder. Data binding is one impl.</li>
+      <li>"MVI requires Redux" — no. Many Android MVI implementations are just sealed Intent + reduce function.</li>
+      <li>"Clean Architecture means UseCases everywhere" — no. UseCases are valuable when reused; over-using them is ceremony.</li>
+      <li>"Multi-module makes builds faster always" — only true if dependency graph is shallow. Deep transitive deps can make it worse.</li>
+      <li>"You must pick MVVM OR MVI for the whole app" — pick per-screen. Most apps mix.</li>
+      <li>"The Domain layer must contain UseCases" — UseCases are optional. Just having domain models + Repository interfaces in Domain is also "Clean enough."</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 19. PACKAGE STRUCTURING =============== -->
+<h2 id="s19">19. Package structuring — full templates</h2>
+
+<h3>Single-module MVVM (small app)</h3>
+<pre><code>com.example.app/
+├── App.kt
+├── MainActivity.kt
+├── di/
+│   ├── DatabaseModule.kt
+│   ├── NetworkModule.kt
+│   └── RepositoryModule.kt
+├── data/
+│   ├── local/      (Room — DAO, DB, entities)
+│   ├── remote/     (Retrofit — API, DTOs)
+│   └── repository/ (RepositoryImpl)
+├── domain/
+│   ├── model/      (pure Kotlin domain types)
+│   ├── repository/ (interfaces)
+│   └── usecase/    (optional — empty until needed)
+├── ui/
+│   ├── theme/
+│   ├── common/     (shared Composables)
+│   └── feature_x/
+│       ├── XScreen.kt
+│       ├── XViewModel.kt
+│       └── XUiState.kt
+└── util/</code></pre>
+
+<h3>Single-module MVI (state-machine flavor)</h3>
+<pre><code><span class="com">// Same as MVVM, but per feature folder:</span>
+ui/feature_x/
+├── XScreen.kt
+├── XViewModel.kt
+├── XUiState.kt
+├── XIntent.kt          <span class="com">// sealed interface</span>
+├── XEffect.kt          <span class="com">// sealed interface (one-shot events)</span>
+└── XReducer.kt         <span class="com">// optional separate file for the pure reducer</span></code></pre>
+
+<h3>Multi-module enterprise (mix of MVVM/MVI per feature)</h3>
+<pre><code>:app                          (NavHost, Application, theme glue)
+:core
+  :core:common                (KMP-ready utilities)
+  :core:design-system         (shared Composables, colors, typography)
+  :core:network               (OkHttp, Retrofit, common interceptors)
+  :core:database              (Room DB, DAOs, type converters)
+  :core:domain                (shared domain models, base Result type)
+  :core:test-utils            (fakes, test rules)
+:feature
+  :feature:home
+    src/main/kotlin/.../feature/home/
+      data/                   (Repo impl + data sources)
+      domain/                 (UseCases, models)
+      ui/                     (Screen + VM + State)
+      di/                     (Hilt module)
+  :feature:profile            (same shape)
+  :feature:checkout           (same shape)</code></pre>
+
+<h3>KMP-shared (Android + iOS)</h3>
+<pre><code>:app:android                  (Android-specific UI + DI wiring)
+:app:ios                      (iOS app — Xcode project consuming :shared)
+:shared                       (KMP module)
+  src/commonMain/kotlin/
+    domain/
+      model/
+      repository/             (interfaces)
+      usecase/
+    data/
+      remote/                 (Ktor)
+      local/                  (SQLDelight)
+      repository/             (impls)
+    di/                       (Koin definitions)
+  src/androidMain/kotlin/
+    Storage.android.kt        (actual)
+  src/iosMain/kotlin/
+    Storage.ios.kt            (actual)</code></pre>
+
+<!-- =============== 20. THE ONE-PAGE RECALL =============== -->
+<h2 id="s20">20. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The mental model</h3>
+  <p>UI ↔ ViewModel/Presenter ↔ (UseCase) ↔ Repository ↔ Data sources. Dependencies point inward. State flows down, events flow up. Domain has zero Android imports.</p>
+
+  <h3>Pick your pattern</h3>
+  <ul>
+    <li><strong>MVP</strong> — legacy Java codebase or learning vehicle</li>
+    <li><strong>MVVM</strong> — default for new Compose apps; lowest boilerplate</li>
+    <li><strong>MVI</strong> — complex async screens; state-machine guarantees</li>
+    <li><strong>Clean</strong> — when shared business logic across screens or platforms (KMP)</li>
+    <li><strong>Multi-module</strong> — when build times or team boundaries demand it</li>
+  </ul>
+
+  <h3>Where things go (universal)</h3>
+  <ul>
+    <li><strong>Network/DB calls</strong> → inside Repository; never in ViewModel</li>
+    <li><strong>WorkManager</strong> → enqueued from Repository or UseCase</li>
+    <li><strong>ForegroundService</strong> → started from Application or controller VM</li>
+    <li><strong>ContentProvider</strong> → wrapped behind a DataSource interface</li>
+    <li><strong>BroadcastReceiver</strong> → notify Repository → it updates state Flow</li>
+    <li><strong>Hilt</strong> → <code>@HiltAndroidApp</code> on App; <code>@HiltViewModel</code> on VMs; <code>@Module</code> for repos</li>
+    <li><strong>One-shot events</strong> → Channel or SharedFlow with replay=0; never StateFlow</li>
+  </ul>
+
+  <h3>SOLID in a sentence each</h3>
+  <ul>
+    <li><strong>S</strong> — one class, one reason to change</li>
+    <li><strong>O</strong> — extend via interfaces, don't modify existing code</li>
+    <li><strong>L</strong> — subtypes are drop-in replacements</li>
+    <li><strong>I</strong> — many small interfaces beat one fat one</li>
+    <li><strong>D</strong> — depend on abstractions, not concretions (DI lives here)</li>
+  </ul>
+
+  <h3>Compose-era best moves</h3>
+  <ul>
+    <li>Single Activity + NavHost</li>
+    <li>StateFlow + collectAsStateWithLifecycle</li>
+    <li>Sealed UiState (one immutable object per screen)</li>
+    <li>SharedFlow for events</li>
+    <li>SavedStateHandle for process-death state</li>
+    <li>Hilt for DI; Koin if going KMP</li>
+    <li>kotlinx.collections.immutable for stable list parameters</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li>Activity-only architecture</li>
+    <li>Calling Repository from View</li>
+    <li>Android Context in Domain layer</li>
+    <li>Multiple Repositories holding the same data without coordination</li>
+    <li>Exposing Room entities to UI</li>
+    <li>One ViewModel for the whole app</li>
+    <li>Many StateFlows when one combined UiState would do</li>
+    <li>GlobalScope</li>
+  </ul>
+</div>
+
+<!-- =============== END =============== -->
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read top to bottom for understanding · skim §13 (where-things-fit matrix), §16 (SOLID interview answers), §20 (recall card) before any architecture interview.
+    Pair with the <strong>Top 210 Android Interview Questions</strong>, <strong>Coroutines Cheat Sheet</strong>, and <strong>Compose Cheat Sheet</strong> in this repo for full Android coverage.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'arch-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
