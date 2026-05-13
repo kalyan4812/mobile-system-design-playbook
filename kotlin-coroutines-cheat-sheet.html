@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kotlin Coroutines Cheat Sheet — The Whole Book in 25 Pages</title>
+<meta name="description" content="A dense personal cheat sheet that distills the key concepts of Kotlin Coroutines (Marcin Moskala) into ~25 pages: model, builders, context, dispatchers, jobs, cancellation, exceptions, scope functions, channels, Flow, SharedFlow/StateFlow, testing, patterns." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 260px minmax(0, 1fr);
+    gap: 28px; max-width: 1280px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.92rem;
+  }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, table, .callout, .two-col { page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Coroutines · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Kotlin Coroutines — Cheat Sheet</h1>
+  <div class="subtitle">A dense personal study guide · Read this and you have the working knowledge</div>
+  <div class="badges">
+    <span class="badge">25 sections</span>
+    <span class="badge">Tables · Code · No fluff</span>
+    <span class="badge">2026 Edition</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a personal high-density study aid covering Kotlin Coroutines from the language model down to advanced Flow patterns and testing. Designed as a reference for someone who has read (or is reading) <em>Kotlin Coroutines: Deep Dive</em> by Marcin Moskała — not a substitute. Concepts are written entirely in my own words; examples are standard idiomatic patterns. Read top-to-bottom for the first pass; skim sections later for re-recall.
+</section>
+
+<!-- =============== 1. THE MENTAL MODEL =============== -->
+<h2 id="s1">1. The mental model in 60 seconds</h2>
+
+<p>A <em>coroutine</em> is a suspendable computation: it can pause itself at well-defined points and later resume on the same or a different thread, without blocking the underlying thread while it waits.</p>
+
+<ul>
+  <li>Threads are scheduled by the OS, cost ~1 MB stack each, and switch with kernel overhead. Coroutines are scheduled by the Kotlin runtime, cost ~hundreds of bytes (one <code>Continuation</code>), and "switch" by returning to a state machine.</li>
+  <li>You can spawn millions of coroutines on a single CPU core; you cannot spawn millions of threads.</li>
+  <li>The compiler converts <code>suspend</code> functions into state machines that take a <code>Continuation</code> parameter. Calling another suspend function may pause the current one until the callee resumes.</li>
+  <li>"Async-looking" code reads top-to-bottom like blocking code, but doesn't block.</li>
+</ul>
+
+<pre><code><span class="kw">suspend fun</span> loadUser(): User {
+    <span class="kw">val</span> json = api.fetch()        <span class="com">// suspends here</span>
+    <span class="kw">return</span> json.toUser()           <span class="com">// resumes here when ready</span>
+}</code></pre>
+
+<p>Three things to internalize:</p>
+<ol>
+  <li><strong>Suspension is cooperative.</strong> Only <code>suspend</code> functions can pause. Inside one, the framework decides where to resume.</li>
+  <li><strong>Structured concurrency.</strong> Every coroutine has a parent scope; when the parent ends or fails, all children are cancelled.</li>
+  <li><strong>Cold by default for Flow, hot for Channels and StateFlow.</strong> Cold sources do nothing until collected; hot sources run regardless of subscribers.</li>
+</ol>
+
+<!-- =============== 2. SUSPENSION UNDER THE HOOD =============== -->
+<h2 id="s2">2. Suspension under the hood</h2>
+
+<p>The Kotlin compiler rewrites every <code>suspend</code> function into a Java/JVM method that takes an extra <code>Continuation&lt;T&gt;</code> parameter and returns either the result or the special marker <code>COROUTINE_SUSPENDED</code>. Suspension points become labels in a generated state machine.</p>
+
+<pre><code><span class="com">// You write:</span>
+<span class="kw">suspend fun</span> work(): Int {
+    <span class="kw">val</span> a = stepOne()       <span class="com">// suspension point #1</span>
+    <span class="kw">val</span> b = stepTwo(a)      <span class="com">// suspension point #2</span>
+    <span class="kw">return</span> a + b
+}
+
+<span class="com">// Compiler emits roughly (simplified):</span>
+<span class="kw">fun</span> work(cont: Continuation&lt;Int&gt;): Any? {
+    <span class="kw">val</span> sm = (cont <span class="kw">as</span>? WorkStateMachine) ?: WorkStateMachine(cont)
+    <span class="kw">when</span> (sm.label) {
+        <span class="num">0</span> -&gt; { sm.label = <span class="num">1</span>; <span class="kw">val</span> r = stepOne(sm); <span class="kw">if</span> (r == COROUTINE_SUSPENDED) <span class="kw">return</span> r; sm.a = r <span class="kw">as</span> Int }
+        <span class="num">1</span> -&gt; { sm.label = <span class="num">2</span>; <span class="kw">val</span> r = stepTwo(sm.a, sm); <span class="kw">if</span> (r == COROUTINE_SUSPENDED) <span class="kw">return</span> r; sm.b = r <span class="kw">as</span> Int }
+        <span class="num">2</span> -&gt; <span class="kw">return</span> sm.a + sm.b
+    }
+}</code></pre>
+
+<p>Implications:</p>
+<ul>
+  <li>Local variables across suspension points are stored as fields on the Continuation/state-machine object.</li>
+  <li>"Suspension" = the function returns <code>COROUTINE_SUSPENDED</code> to its caller, having stored everything; the awaited operation later calls <code>cont.resumeWith(...)</code>, which jumps to the next state.</li>
+  <li>A coroutine is not pinned to a thread between suspensions — it can resume on a different thread (decided by the dispatcher).</li>
+  <li>This is what's called <strong>Continuation-Passing Style</strong> transformation.</li>
+</ul>
+
+<!-- =============== INTERNALS — WHAT'S NOT MAGIC =============== -->
+<h2 id="smagic">★ Internals — what's NOT magic (the things you assumed were magic)</h2>
+
+<p>The 60-second model in §1 and the state-machine walkthrough in §2 explain how <code>suspend</code> works. Here's the same demystification applied to <em>every other</em> piece of coroutines that people treat as magic. After this section, "advanced" stops feeling mysterious — every "magical" behavior turns out to be a small piece of plain Kotlin code.</p>
+
+<h3>1. <code>launch { }</code> "starts a coroutine" — full mechanics</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> calling <code>launch</code> somehow makes a block run in parallel.<br/>
+<strong>Actually:</strong> <code>launch</code> is a regular extension function on <code>CoroutineScope</code>. Step by step:
+</div>
+<pre><code><span class="com">// Conceptual signature</span>
+<span class="kw">fun</span> CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext,
+    start: CoroutineStart = CoroutineStart.DEFAULT,
+    block: <span class="kw">suspend</span> CoroutineScope.() -&gt; Unit
+): Job {
+    <span class="kw">val</span> newCtx = newCoroutineContext(context)        <span class="com">// 1. merge parent ctx + supplied ctx</span>
+    <span class="kw">val</span> coroutine = StandaloneCoroutine(newCtx, ...)  <span class="com">// 2. build the coroutine instance (IS-A Job + Continuation)</span>
+    coroutine.start(start, coroutine, block)          <span class="com">// 3. ask dispatcher to schedule first resumption</span>
+    <span class="kw">return</span> coroutine                                  <span class="com">// 4. return the Job</span>
+}</code></pre>
+<ul>
+  <li><strong>(1) <code>newCoroutineContext</code></strong> combines parent context + supplied context. Crucially, it replaces the parent's Job with the new coroutine's Job — that's how the parent-child link forms.</li>
+  <li><strong>(2)</strong> A <code>StandaloneCoroutine</code> is one object that implements both <code>Job</code> (so cancellation works) and <code>Continuation</code> (so the suspending body can resume into it).</li>
+  <li><strong>(3) <code>start()</code></strong> calls the dispatcher's <code>dispatch(continuation)</code>, which queues the first resumption. The block doesn't run synchronously — it runs whenever the dispatcher's worker picks it up.</li>
+  <li><strong>(4)</strong> The Job is returned so you can <code>cancel()</code>, <code>join()</code>, or <code>invokeOnCompletion { }</code>.</li>
+</ul>
+<p><code>CoroutineStart</code> modes worth knowing:</p>
+<ul>
+  <li><strong>DEFAULT</strong> — dispatch immediately (most common).</li>
+  <li><strong>LAZY</strong> — don't dispatch until <code>start()</code>, <code>join()</code>, or <code>await()</code> is called.</li>
+  <li><strong>ATOMIC</strong> — dispatch immediately and ignore early cancellation (block always runs at least to first suspension).</li>
+  <li><strong>UNDISPATCHED</strong> — run inline on caller thread until first suspension; then resume per dispatcher.</li>
+</ul>
+
+<h3>1b. <code>async { }</code> — what changes vs launch</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> async returns a "future-like" thing that can throw later.<br/>
+<strong>Actually:</strong> Same machinery as launch, but the returned object is a <code>Deferred&lt;T&gt;</code> (which IS-A <code>Job</code> with an extra "result slot"). The block's return value goes into that slot; <code>await()</code> reads it.
+</div>
+<pre><code><span class="kw">val</span> d: Deferred&lt;User&gt; = scope.async { api.user() }
+<span class="kw">val</span> u: User = d.<span class="kw">await</span>()      <span class="com">// suspends until result; throws if block threw</span></code></pre>
+<ul>
+  <li><strong><code>await()</code></strong> uses <code>suspendCancellableCoroutine</code>: if the Deferred is already complete, returns the result immediately; otherwise registers a callback via <code>invokeOnCompletion</code> and suspends. When the block completes, that callback resumes the awaiter with the result (or rethrows the stored exception).</li>
+  <li><strong>Exception behavior</strong>: an exception in the block is stored in the Deferred. It's rethrown only when you call <code>await()</code>. <em>But</em> the failure also propagates up the Job tree — which means in a non-supervised scope, even an unawaited <code>async</code> exception cancels the parent scope. In a <code>supervisorScope</code>, the exception just sits in the Deferred until somebody awaits.</li>
+  <li><strong>Don't</strong> use <code>async {...}.await()</code> back-to-back — it's the same as a <code>suspend</code> call but with the overhead of building a Deferred. Use async only when you fork into parallel work.</li>
+</ul>
+
+<h3>2. Cancelling the parent kills all children</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> one <code>cancel()</code> propagates through every nested coroutine.<br/>
+<strong>Actually:</strong> <code>Job</code> keeps a list of children, populated when a child is created via <code>attachChild</code>. <code>cancel()</code> walks that list and calls <code>cancel()</code> on each. Each child does the same to its own children. It's just a tree traversal.
+</div>
+<pre><code><span class="com">// Roughly what cancellation propagation looks like:</span>
+<span class="kw">fun</span> Job.cancelTree() {
+    children.forEach { it.cancelTree() }    <span class="com">// recurse first</span>
+    state = Cancelling
+    completion.invokeAll(CancellationException())
+}</code></pre>
+
+<h3>3. <code>coroutineScope { }</code> waits for everything inside</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> a function call somehow waits for arbitrarily many child coroutines.<br/>
+<strong>Actually:</strong> It creates a fresh <code>Job</code>, runs your block in a new scope using that Job as parent. Your block returns, and the new Job goes to <em>Completing</em> state. It only goes to <em>Completed</em> when all children finish. Then the outer suspend resumes. No magic — just <code>Job.join()</code> on the new scope's Job, internally.
+</div>
+
+<h3>4. <code>Dispatchers.Main</code> knows about Android's UI thread</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> a generic <code>kotlinx.coroutines</code> dispatcher somehow knows about Android.<br/>
+<strong>Actually:</strong> Java's <code>ServiceLoader</code> mechanism. The <code>kotlinx-coroutines-android</code> artifact ships a <code>META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory</code> file pointing at <code>AndroidDispatcherFactory</code>. On first access, that factory is loaded and produces a dispatcher that posts to the main <code>Looper</code>'s <code>Handler</code>. Pure JVM apps without that artifact get a "missing main dispatcher" error or a fallback dispatcher.
+</div>
+
+<h3>5. <code>CoroutineContext</code> lets you <code>+</code> together random elements</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> <code>Dispatchers.IO + CoroutineName("x") + SupervisorJob() + handler</code> — how do unrelated types compose?<br/>
+<strong>Actually:</strong> <code>CoroutineContext</code> is a persistent, immutable map keyed by <code>CoroutineContext.Element.Key</code>. Every element (<code>Job</code>, <code>CoroutineDispatcher</code>, <code>CoroutineName</code>, <code>CoroutineExceptionHandler</code>) declares its own Key and IS-A Element. <code>+</code> calls <code>plus()</code> which builds a combined context (essentially a linked list of elements). <code>context[Job]</code> walks the list looking for the element with that Key.
+</div>
+
+<h3>6. Cold <code>Flow</code> "doesn't run" until collected</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> <code>val f = flow { println("hi") }</code> — nothing prints. Until <code>f.collect {}</code>. Then it prints. Repeat <code>collect</code> — prints again.<br/>
+<strong>Actually:</strong> <code>flow { ... }</code> is a builder that returns an object with a single method <code>collect(collector)</code>. That method runs your lambda, passing it a collector to <code>emit</code> to. Until something calls <code>collect</code>, your lambda is just stored as a function reference. There's no scheduler, no queue, no lifecycle — just "nobody invoked the function yet." Coldness is not a feature; it's the absence of magic.
+</div>
+
+<h3>7. <code>emit()</code> and the collector body run synchronously, on the same coroutine</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> producer "talks to" consumer; somehow values flow through.<br/>
+<strong>Actually:</strong> <code>emit(x)</code> directly calls <code>collector.emit(x)</code>, which directly calls the lambda you passed to <code>collect { ... }</code>. No threads, no buffer, no queue — just nested function calls on the same call stack. That's why backpressure is automatic: the producer literally cannot run faster than the consumer because they're the same code path.
+</div>
+<pre><code>flow { emit(<span class="num">1</span>); emit(<span class="num">2</span>) }.collect { print(it) }
+<span class="com">// Equivalent to (roughly):</span>
+<span class="kw">val</span> collector = FlowCollector { print(it) }
+collector.emit(<span class="num">1</span>)              <span class="com">// runs print(1)</span>
+collector.emit(<span class="num">2</span>)              <span class="com">// runs print(2)</span>
+<span class="com">// All on the calling coroutine. No threads created.</span></code></pre>
+
+<h3>8. <code>flowOn</code> switches the upstream dispatcher only</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> how does it know where the boundary between "upstream" and "downstream" is, and switch threads only above it?<br/>
+<strong>Actually:</strong> <code>flowOn</code> introduces a <code>Channel</code> between upstream and downstream. Upstream operators run on the new dispatcher and <code>send</code> to the channel; the collector runs on the original dispatcher and <code>receive</code>s from it. The channel <em>is</em> the boundary. That's why you'll see a small extra cost — there's a real channel hop.
+</div>
+
+<h3>9. <code>StateFlow</code> "drops equal values"</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> set <code>value = x</code> twice with same value, subscribers fire only once.<br/>
+<strong>Actually:</strong> The <code>value</code> setter does an internal <code>compareAndSet</code> (real CAS via <code>AtomicReference</code>). If the new value <code>equals</code> the current, no-op. Otherwise the new value is published and subscribers get notified. <em>This is why a data class with broken <code>equals</code> can cause unwanted recompositions.</em>
+</div>
+
+<h3>10. <code>SharedFlow</code> broadcasts to many collectors</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> one <code>emit</code> reaches every subscriber.<br/>
+<strong>Actually:</strong> SharedFlow internally maintains a list of "subscriber slots", each tracking that collector's read index in a circular buffer. <code>emit</code> walks the slots, advancing each subscriber's available index, and unparks any that were waiting. <code>replay</code> = the size of the circular buffer of "old values" shown to new subscribers when they join.
+</div>
+
+<h3>11. <code>callbackFlow</code> + <code>awaitClose</code> "blocks forever" until cancel</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> <code>awaitClose { }</code> just sits there suspended, then somehow runs cleanup at the right moment.<br/>
+<strong>Actually:</strong> <code>callbackFlow</code> is built on a <code>ProducerScope</code> that owns a <code>Channel</code>. <code>awaitClose</code> registers a callback on that channel's <code>invokeOnClose</code> hook and suspends the producer coroutine. When the collector cancels, the channel is closed; <code>invokeOnClose</code> fires; <code>awaitClose</code> resumes; your cleanup block runs; coroutine completes.
+</div>
+
+<h3>12. <code>yield()</code> "checks for cancellation"</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> a one-line call somehow notices cancellation in a tight loop.<br/>
+<strong>Actually:</strong> <code>yield()</code> calls <code>coroutineContext[Job]?.ensureActive()</code> first. If the Job is cancelled, that throws <code>CancellationException</code> immediately. If still active, it then dispatches the continuation back through the dispatcher (giving other coroutines a chance to run). <code>ensureActive()</code> is the cancellation check; the dispatcher hop is the "give others a turn" part.
+</div>
+
+<h3>13. <code>CoroutineExceptionHandler</code> "only fires for root coroutines"</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> sometimes my handler fires; sometimes the same exception silently kills siblings instead.<br/>
+<strong>Actually:</strong> When a coroutine throws, the exception walks up the parent Job chain. At each non-root Job, the exception <em>cancels the parent</em> (which then cancels all its children — cascading failure). Only when the exception reaches a root Job (a Job whose <code>parent</code> is null — the Job sitting at the top of your <code>CoroutineScope</code>) is the <code>CoroutineExceptionHandler</code> from that scope's context invoked. That's why handlers attached to nested launches are ignored.
+</div>
+
+<h3>14. <code>viewModelScope</code> "auto-cancels" when ViewModel is cleared</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> a property on ViewModel knows about ViewModel lifecycle.<br/>
+<strong>Actually:</strong> First access to <code>viewModelScope</code> creates <code>CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)</code> and stores it as a <code>Closeable</code> on the ViewModel via <code>setTagIfAbsent</code> / <code>addCloseable</code>. When <code>ViewModel.onCleared()</code> runs, the framework calls <code>close()</code> on every registered Closeable. The Closeable wrapper calls <code>scope.cancel()</code>. Same trick powers <code>lifecycleScope</code> (cancelled by Lifecycle observer at <code>DESTROYED</code>) and <code>rememberCoroutineScope()</code> (cancelled when the Composable leaves composition).
+</div>
+
+<div class="callout good" style="margin-top: 18px;">
+<strong>The takeaway:</strong> none of this is magic. Every "advanced" coroutine feature is a small chunk of straightforward Kotlin built on top of three primitives — <code>Continuation</code>, <code>Job</code>, and <code>CoroutineDispatcher</code>. Once you internalize this, reading the kotlinx.coroutines source becomes routine instead of intimidating.
+</div>
+
+<!-- =============== 3. COROUTINE BUILDERS =============== -->
+<h2 id="s3">3. Coroutine builders</h2>
+
+<p>Builders create a coroutine from inside a scope. The four you'll use most:</p>
+
+<table>
+  <thead><tr><th>Builder</th><th>Returns</th><th>Use when</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>launch</code></td><td><code>Job</code></td><td>Fire-and-forget side work</td><td>Exception cancels parent (unless supervisor)</td></tr>
+    <tr><td><code>async</code></td><td><code>Deferred&lt;T&gt;</code></td><td>You need a result; parallel decomposition</td><td>Exception is rethrown by <code>await()</code></td></tr>
+    <tr><td><code>runBlocking</code></td><td><code>T</code></td><td>Tests, <code>main()</code>, bridging to blocking APIs</td><td><strong>Never</strong> on Android main thread</td></tr>
+    <tr><td><code>coroutineScope { }</code></td><td><code>T</code></td><td>Inside a suspend function, run children + wait</td><td>Inherits caller's context; one fail cancels siblings</td></tr>
+  </tbody>
+</table>
+
+<pre><code>scope.launch { saveAnalytics(event) }                   <span class="com">// fire-and-forget</span>
+
+scope.launch {
+    <span class="kw">val</span> a = async { api.user() }                       <span class="com">// parallel</span>
+    <span class="kw">val</span> b = async { api.orders() }
+    render(a.<span class="kw">await</span>(), b.<span class="kw">await</span>())
+}
+
+<span class="kw">suspend fun</span> compose() = coroutineScope {              <span class="com">// inherit, wait for all</span>
+    <span class="kw">val</span> a = async { ... }
+    <span class="kw">val</span> b = async { ... }
+    a.<span class="kw">await</span>() to b.<span class="kw">await</span>()
+}</code></pre>
+
+<div class="callout"><strong>Tip:</strong> use <code>async</code> only when you actually fork into parallel work. Two back-to-back <code>async {...}.await()</code> calls is just sequential code with extra overhead.</div>
+
+<!-- =============== 4. COROUTINE CONTEXT + DISPATCHERS =============== -->
+<h2 id="s4">4. CoroutineContext + Dispatchers</h2>
+
+<p><code>CoroutineContext</code> is an indexed set of elements. Most important elements: <code>Job</code>, <code>CoroutineDispatcher</code>, <code>CoroutineName</code>, <code>CoroutineExceptionHandler</code>. Combine with <code>+</code>:</p>
+
+<pre><code><span class="kw">val</span> ctx = Dispatchers.IO + CoroutineName(<span class="str">"sync"</span>) + SupervisorJob() + handler
+scope.launch(ctx) { ... }</code></pre>
+
+<p>A child coroutine's context = parent context + builder's argument context. The Job element is always replaced by the child's new Job (so structured concurrency works).</p>
+
+<h3>Dispatchers — what each is for</h3>
+<table>
+  <thead><tr><th>Dispatcher</th><th>Backed by</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>Main</code></td><td>UI thread</td><td>UI updates, View/Compose state writes</td></tr>
+    <tr><td><code>Main.immediate</code></td><td>UI thread (skip dispatch if already there)</td><td>Same, slightly faster when already on Main</td></tr>
+    <tr><td><code>Default</code></td><td>Pool sized to <code>max(2, cpuCores)</code></td><td>CPU-bound work: parsing, sorting, image processing</td></tr>
+    <tr><td><code>IO</code></td><td>Pool starting at 64, expands</td><td>Blocking I/O: Room, OkHttp synchronous, file reads</td></tr>
+    <tr><td><code>Unconfined</code></td><td>Caller thread initially, then resumed thread</td><td>Tests only — counter-intuitive in production</td></tr>
+    <tr><td><code>limitedParallelism(N)</code></td><td>Subset of Default/IO with N concurrent</td><td>Cap parallelism for resource-limited services</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">val</span> dbDispatcher = Dispatchers.IO.limitedParallelism(<span class="num">4</span>)        <span class="com">// don't flood DB</span>
+withContext(dbDispatcher) { dao.bulkInsert(rows) }</code></pre>
+
+<div class="callout"><strong>Tip:</strong> <code>Default</code> and <code>IO</code> share the same underlying thread pool — switching between them is cheap and doesn't actually create a new thread.</div>
+
+<h3>What each dispatcher uses internally</h3>
+<table>
+  <thead><tr><th>Dispatcher</th><th>Backing</th><th>How it dispatches</th></tr></thead>
+  <tbody>
+    <tr><td><code>Main</code></td><td>Platform main loop (Android <code>Looper</code>, Swing event queue, JavaFX app thread)</td><td>Posts a <code>Runnable</code> to the platform's main <code>Handler</code>/queue</td></tr>
+    <tr><td><code>Main.immediate</code></td><td>Same as <code>Main</code></td><td>If already on the main thread, executes inline; else posts. Saves one dispatch hop</td></tr>
+    <tr><td><code>Default</code></td><td><code>DefaultScheduler</code> — work-stealing pool sized to <code>max(2, cpuCores)</code></td><td>Pushes onto a per-worker local deque; idle workers steal</td></tr>
+    <tr><td><code>IO</code></td><td><strong>Same DefaultScheduler</strong>, gated by a semaphore (cap = <code>max(64, cpuCores)</code>)</td><td>Same threads as Default, but the semaphore lets the pool grow temporarily for blocking work</td></tr>
+    <tr><td><code>Unconfined</code></td><td>None</td><td>Runs in caller thread until first suspension; resumes wherever the awaited operation completed</td></tr>
+    <tr><td><code>limitedParallelism(N)</code></td><td>Wraps another dispatcher</td><td>Same threads, capped concurrency via internal semaphore</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Key insight:</strong> <code>Default</code> and <code>IO</code> are the <em>same threads</em>. The only difference is concurrency cap (cores vs 64+) and the assumption about whether work blocks. So <code>withContext(Dispatchers.IO) { ... }</code> from inside a Default coroutine doesn't allocate a new thread — it just changes the cap.</div>
+
+<h4>When to pick which (decision rules)</h4>
+<ul>
+  <li><strong>UI work (Compose recomposition, View mutation)</strong> → <code>Main</code>; use <code>Main.immediate</code> in event handlers to skip the extra dispatch.</li>
+  <li><strong>JSON parsing, sorting, image processing, crypto</strong> → <code>Default</code>. CPU-bound; want N-core parallelism, not more.</li>
+  <li><strong>Room queries, OkHttp synchronous calls, file I/O, JNI to a blocking C lib</strong> → <code>IO</code>. The work mostly waits on the kernel; we can have many concurrent waiters.</li>
+  <li><strong>Resource-limited services (slow DB, rate-limited HTTP)</strong> → <code>Dispatchers.IO.limitedParallelism(N)</code>. Don't flood downstream.</li>
+  <li><strong>Long-running blocking thread you fully own</strong> → <code>Dispatchers.IO.limitedParallelism(1)</code> = your own private serialized worker.</li>
+</ul>
+
+<!-- =============== 5. JOB HIERARCHY & STRUCTURED CONCURRENCY =============== -->
+<h2 id="s5">5. Job hierarchy &amp; structured concurrency</h2>
+
+<p>Every coroutine has a <code>Job</code>. Jobs form a tree mirroring the launch hierarchy. Five lifecycle states:</p>
+
+<table>
+  <thead><tr><th>State</th><th>isActive</th><th>isCompleted</th><th>isCancelled</th></tr></thead>
+  <tbody>
+    <tr><td>New (lazy)</td><td>false</td><td>false</td><td>false</td></tr>
+    <tr><td>Active</td><td>true</td><td>false</td><td>false</td></tr>
+    <tr><td>Completing</td><td>true</td><td>false</td><td>false</td></tr>
+    <tr><td>Cancelling</td><td>false</td><td>false</td><td>true</td></tr>
+    <tr><td>Cancelled / Completed</td><td>false</td><td>true</td><td>(only Cancelled)</td></tr>
+  </tbody>
+</table>
+
+<p>Rules of structured concurrency:</p>
+<ul>
+  <li>Parent waits for all children to finish before completing.</li>
+  <li>Cancelling the parent cancels all children.</li>
+  <li>Failure of a child cancels the parent (and thus all siblings) — <em>unless</em> the parent is a <code>SupervisorJob</code> or you're inside <code>supervisorScope</code>.</li>
+  <li>Cancellation propagates downward; failure propagates upward.</li>
+</ul>
+
+<pre><code><span class="kw">val</span> parent = scope.launch {
+    launch { childA() }
+    launch { childB() }
+}                          <span class="com">// parent completes only when A AND B finish</span>
+
+parent.cancel()            <span class="com">// cancels A and B too</span>
+parent.<span class="kw">join</span>()              <span class="com">// suspend until parent + children fully finished</span></code></pre>
+
+<h3>Job vs SupervisorJob</h3>
+<div class="two-col">
+  <div class="col-card"><strong>Job</strong>One child failing cancels every sibling and the parent. Use when work is "all or nothing".</div>
+  <div class="col-card"><strong>SupervisorJob</strong>One child failing leaves siblings alone. Use for independent parallel tasks (loading 3 widgets where one failing shouldn't kill the others).</div>
+</div>
+
+<h4>How SupervisorJob actually differs internally</h4>
+<p>Both are <code>JobSupport</code> implementations. The only difference: <code>SupervisorJob</code> overrides <code>childCancelled(cause)</code> to return <code>false</code> — which means "I refuse to be cancelled because of my child's failure." A regular <code>Job</code> returns <code>true</code> there, which triggers cascading cancellation up to the root.</p>
+<pre><code><span class="com">// Conceptually:</span>
+<span class="kw">class</span> JobImpl : JobSupport() {
+    <span class="kw">override fun</span> childCancelled(cause: Throwable) = <span class="kw">true</span>     <span class="com">// propagate</span>
+}
+<span class="kw">class</span> SupervisorJobImpl : JobSupport() {
+    <span class="kw">override fun</span> childCancelled(cause: Throwable) = <span class="kw">false</span>    <span class="com">// don't propagate</span>
+}</code></pre>
+
+<h4>When to use which</h4>
+<ul>
+  <li><strong>Use Job</strong> for atomic operations where partial success is meaningless (e.g., parallel decomposition: load user + load orders, both must succeed).</li>
+  <li><strong>Use SupervisorJob</strong> at scope roots that host independent work (Application scope, ViewModelScope, screen-level scopes) so one failing job doesn't tear down the whole screen.</li>
+  <li><strong>Don't mix them in the middle</strong>: a SupervisorJob deep inside a Job tree only protects its direct children. Failures still propagate up <em>through</em> the SupervisorJob if it itself is cancelled.</li>
+</ul>
+<p>Rule of thumb: <code>viewModelScope</code> / <code>lifecycleScope</code> / your custom app scopes use SupervisorJob by default. <code>coroutineScope { }</code> uses regular Job. <code>supervisorScope { }</code> is just <code>coroutineScope</code> with a SupervisorJob.</p>
+
+<!-- =============== 6. CANCELLATION =============== -->
+<h2 id="s6">6. Cancellation</h2>
+
+<p>Cancellation throws <code>CancellationException</code> at the next suspension point. Tight CPU loops without suspension points are not cancellable until they call <code>yield()</code> or <code>ensureActive()</code>.</p>
+
+<pre><code>scope.launch {
+    <span class="kw">while</span> (isActive) {                 <span class="com">// or check ensureActive() periodically</span>
+        compute()
+        yield()                       <span class="com">// suspend point — gives cancellation a chance</span>
+    }
+}
+
+<span class="com">// Bad: never cancellable</span>
+scope.launch { <span class="kw">while</span> (<span class="kw">true</span>) { computeForever() } }</code></pre>
+
+<p>Things to know:</p>
+<ul>
+  <li>Standard library suspending functions (<code>delay</code>, <code>withContext</code>, <code>await</code>) check cancellation automatically.</li>
+  <li>Custom <code>suspendCancellableCoroutine</code> wrappers should call <code>continuation.invokeOnCancellation { cleanup() }</code>.</li>
+  <li>Cleanup that must run even after cancellation goes inside <code>withContext(NonCancellable) { ... }</code>. Use sparingly.</li>
+  <li>Never catch <code>CancellationException</code> with a bare <code>catch (e: Throwable)</code> and swallow it — that breaks structured cancellation.</li>
+</ul>
+
+<pre><code><span class="kw">try</span> { riskyCall() }
+<span class="kw">catch</span> (e: CancellationException) { <span class="kw">throw</span> e }       <span class="com">// rethrow cancellation</span>
+<span class="kw">catch</span> (e: Throwable) { handle(e) }</code></pre>
+
+<!-- =============== 7. EXCEPTION HANDLING =============== -->
+<h2 id="s7">7. Exception handling</h2>
+
+<p>Exceptions in coroutines behave differently between <code>launch</code> and <code>async</code>:</p>
+
+<table>
+  <thead><tr><th>Builder</th><th>How exceptions surface</th></tr></thead>
+  <tbody>
+    <tr><td><code>launch</code></td><td>Propagates immediately to parent Job; if not handled, goes to <code>CoroutineExceptionHandler</code> or default.</td></tr>
+    <tr><td><code>async</code></td><td>Stored in <code>Deferred</code>; rethrown only when you call <code>await()</code>. Also propagates to parent.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">val</span> handler = CoroutineExceptionHandler { _, e -&gt; Log.e(<span class="str">"App"</span>, <span class="str">"Uncaught"</span>, e) }
+<span class="kw">val</span> scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + handler)
+
+scope.launch {
+    <span class="kw">try</span> { api.call() }
+    <span class="kw">catch</span> (e: IOException) { showError() }     <span class="com">// IO handled here</span>
+    <span class="com">// other exceptions propagate to handler</span>
+}
+
+<span class="com">// async — must catch around await()</span>
+scope.launch {
+    <span class="kw">val</span> d = async { riskyCall() }
+    <span class="kw">try</span> { d.<span class="kw">await</span>() }
+    <span class="kw">catch</span> (e: Exception) { handle(e) }
+}</code></pre>
+
+<h3>Where the handler actually runs</h3>
+<ul>
+  <li><strong>Only</strong> attached to root Jobs (the Job at the top of a scope). Handlers on nested launches are ignored — exceptions bubble to the root.</li>
+  <li><strong>Doesn't fire for <code>async</code></strong>: those exceptions surface via <code>await()</code>.</li>
+  <li>If neither caught nor handler set: on JVM/Android, the exception goes to <code>Thread.UncaughtExceptionHandler</code> (Crashlytics catches it).</li>
+</ul>
+
+<div class="callout warn"><strong>Pitfall:</strong> A child throwing in a non-supervised scope cancels the entire scope — including unrelated parallel work. If that's not what you want, use <code>SupervisorJob</code> / <code>supervisorScope</code>.</div>
+
+<!-- =============== 8. SCOPE FUNCTIONS =============== -->
+<h2 id="s8">8. Coroutine scope functions</h2>
+
+<p>"Scope functions" are suspend functions that create a new scope, execute a block, and wait for everything inside.</p>
+
+<table>
+  <thead><tr><th>Function</th><th>What it does</th><th>Failure behavior</th></tr></thead>
+  <tbody>
+    <tr><td><code>coroutineScope { }</code></td><td>New scope; inherits caller's context (incl. dispatcher).</td><td>Any child fails → all cancelled, exception rethrown</td></tr>
+    <tr><td><code>supervisorScope { }</code></td><td>Same, but children failures don't cascade to siblings.</td><td>Each child handles its own failure</td></tr>
+    <tr><td><code>withContext(ctx) { }</code></td><td>Switch context (usually dispatcher) for one block.</td><td>Standard exception propagation</td></tr>
+    <tr><td><code>withTimeout(ms) { }</code></td><td>Cancel block if it exceeds time limit; throws <code>TimeoutCancellationException</code>.</td><td>Block is cancelled, exception thrown</td></tr>
+    <tr><td><code>withTimeoutOrNull(ms) { }</code></td><td>Same, but returns <code>null</code> on timeout instead of throwing.</td><td>Block cancelled, you get null</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">suspend fun</span> loadAll(): Pair&lt;User, List&lt;Order&gt;&gt; = coroutineScope {
+    <span class="kw">val</span> u = async { api.user() }
+    <span class="kw">val</span> o = async { api.orders() }
+    u.<span class="kw">await</span>() to o.<span class="kw">await</span>()
+}
+
+<span class="kw">val</span> result = withTimeoutOrNull(<span class="num">5_000</span>) { api.fetch() } ?: defaultValue
+
+<span class="kw">val</span> users = withContext(Dispatchers.IO) { dao.queryAll() }</code></pre>
+
+<!-- =============== 9. CONSTRUCTING SCOPES =============== -->
+<h2 id="s9">9. Constructing your own CoroutineScope</h2>
+
+<p>A scope owns a Job and a default context. Three patterns:</p>
+
+<pre><code><span class="com">// 1. App-wide singleton (custom)</span>
+<span class="kw">val</span> appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+<span class="com">// 2. Lifecycle-scoped (Android Jetpack provides these)</span>
+viewModelScope.launch { ... }      <span class="com">// cleared in ViewModel.onCleared</span>
+lifecycleScope.launch { ... }      <span class="com">// cleared at Activity/Fragment DESTROYED</span>
+
+<span class="com">// 3. Per-task (don't usually do this — use scope functions instead)</span>
+<span class="kw">val</span> tempScope = CoroutineScope(Job())
+tempScope.launch { ... }
+tempScope.cancel()                  <span class="com">// you must cancel manually!</span></code></pre>
+
+<table>
+  <thead><tr><th>Where</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td>Inside a ViewModel</td><td><code>viewModelScope</code></td></tr>
+    <tr><td>Inside an Activity/Fragment</td><td><code>lifecycleScope</code> + <code>repeatOnLifecycle</code></td></tr>
+    <tr><td>Inside a Composable</td><td><code>rememberCoroutineScope()</code></td></tr>
+    <tr><td>Inside a long-lived Service / Application</td><td>Custom <code>CoroutineScope(SupervisorJob() + Dispatchers.X)</code></td></tr>
+    <tr><td>Inside a suspending function</td><td>Don't create a scope — use <code>coroutineScope { }</code></td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn"><strong>Anti-pattern:</strong> <code>GlobalScope</code>. It's not cancellable, ignores structured concurrency, and leaks. Use a properly-scoped CoroutineScope tied to a lifecycle.</div>
+
+<h3>The full landscape — every scope, when each is right</h3>
+<table>
+  <thead><tr><th>Scope</th><th>Job type</th><th>Default dispatcher</th><th>Cancelled when</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>GlobalScope</code></td><td>None (top of tree)</td><td><code>Default</code></td><td>Never (manually)</td><td>Almost never. <code>@DelicateCoroutinesApi</code> for a reason</td></tr>
+    <tr><td><code>MainScope()</code></td><td><code>SupervisorJob</code></td><td><code>Main</code></td><td><code>scope.cancel()</code></td><td>Custom Activity/Fragment when not using Jetpack scopes</td></tr>
+    <tr><td><code>CoroutineScope(...)</code></td><td>Whatever you pass</td><td>Whatever you pass</td><td><code>scope.cancel()</code></td><td>Long-lived components (Application, Service) — must cancel manually</td></tr>
+    <tr><td><code>viewModelScope</code></td><td><code>SupervisorJob</code></td><td><code>Main.immediate</code></td><td><code>onCleared()</code></td><td>Inside ViewModel — default for VM work</td></tr>
+    <tr><td><code>lifecycleScope</code></td><td><code>SupervisorJob</code></td><td><code>Main.immediate</code></td><td>Lifecycle <code>DESTROYED</code></td><td>Inside Activity/Fragment when not using Compose</td></tr>
+    <tr><td><code>rememberCoroutineScope()</code></td><td>Job linked to composition</td><td><code>Main</code></td><td>Composable leaves composition</td><td>Event handlers in Composables (clicks, drags)</td></tr>
+    <tr><td><code>coroutineScope { }</code></td><td>Inherits parent + child Job</td><td>Inherits</td><td>Block returns / failure</td><td>Inside a suspend function — preferred to creating a scope</td></tr>
+  </tbody>
+</table>
+
+<h3>GlobalScope — the deep dive (pros, cons, when it's actually OK)</h3>
+<p>What it actually is:</p>
+<pre><code><span class="kw">public object</span> GlobalScope : CoroutineScope {
+    <span class="kw">override val</span> coroutineContext: CoroutineContext = EmptyCoroutineContext
+}</code></pre>
+<p>That's the entire definition. Empty context = no Job, no Dispatcher (defaults to <code>Dispatchers.Default</code> when launching). Coroutines launched here have <strong>no parent</strong> — they're roots of their own little trees, completely outside any structured-concurrency tree you might have.</p>
+
+<div class="two-col">
+  <div class="col-card good"><strong>Pros</strong>
+    <ul>
+      <li>Survives any UI lifecycle — useful for fire-and-forget work that genuinely shouldn't be cancelled with the screen</li>
+      <li>Zero ceremony — no setup, just launch</li>
+      <li>Doesn't get cancelled when its launching code returns</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Cons</strong>
+    <ul>
+      <li>Bypasses structured concurrency (the whole point of coroutines)</li>
+      <li>No automatic cancellation → easy to leak</li>
+      <li>Tests can't control its scheduling without injecting a TestDispatcher</li>
+      <li>Exceptions go to the default Thread.UncaughtExceptionHandler — surprising in tests</li>
+      <li><code>@DelicateCoroutinesApi</code> annotation in 1.5+ — IDE flags every usage</li>
+      <li>Most "I need GlobalScope" turns out to be "I need a properly-scoped Application-level scope"</li>
+    </ul>
+  </div>
+</div>
+
+<p><strong>When it's acceptable</strong> (rare):</p>
+<ul>
+  <li>Top-level analytics flush from <code>Application.onTerminate()</code> equivalent — never going to be cancelled anyway</li>
+  <li>A library shipping fire-and-forget telemetry without a host lifecycle</li>
+  <li>Your own deliberately-leaked daemon (you accept the leak)</li>
+</ul>
+
+<p><strong>When it's NOT acceptable</strong> (common):</p>
+<ul>
+  <li>Network calls related to a screen → screen scope (<code>viewModelScope</code>)</li>
+  <li>Background work that should survive process death → WorkManager, NOT GlobalScope</li>
+  <li>"It works on my machine" code that leaks coroutines slowly until your test suite OOMs</li>
+</ul>
+
+<h3>Custom <code>CoroutineScope(...)</code> — the safer alternative to GlobalScope</h3>
+<pre><code><span class="kw">class</span> Session {
+    <span class="kw">private val</span> scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineName(<span class="str">"session"</span>))
+
+    <span class="kw">fun</span> start() { scope.launch { ... } }
+    <span class="kw">fun</span> close() { scope.cancel() }       <span class="com">// CRITICAL — you must call this</span>
+}</code></pre>
+<p>Difference from GlobalScope:</p>
+<ul>
+  <li>You own the Job — can <code>cancel()</code> as a unit when the session ends</li>
+  <li>You can install a <code>CoroutineExceptionHandler</code> in the context</li>
+  <li>Easy to swap dispatcher in tests</li>
+  <li>Forgetting <code>cancel()</code> still leaks — but at least the leak is bounded to one scope</li>
+</ul>
+
+<h3>What's actually inside <code>viewModelScope</code></h3>
+<pre><code><span class="com">// Conceptual implementation</span>
+<span class="kw">val</span> ViewModel.viewModelScope: CoroutineScope <span class="kw">by</span> lazy {
+    <span class="kw">val</span> scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    addCloseable(Closeable { scope.cancel() })   <span class="com">// auto-cancel on onCleared()</span>
+    scope
+}</code></pre>
+<p>Why this combination:</p>
+<ul>
+  <li><strong>SupervisorJob</strong> — one failed coroutine doesn't tear down the entire ViewModel</li>
+  <li><strong>Main.immediate</strong> — most VM work updates UI; immediate skips a dispatch hop when already on Main</li>
+  <li><strong>Closeable hook</strong> — guaranteed cancel on <code>onCleared()</code>, no leaks</li>
+</ul>
+
+<h3>Decision tree (memorize this)</h3>
+<ol>
+  <li>Inside a ViewModel? → <code>viewModelScope</code></li>
+  <li>Inside a Composable event handler? → <code>rememberCoroutineScope()</code></li>
+  <li>Inside an Activity/Fragment (View system)? → <code>lifecycleScope</code> + <code>repeatOnLifecycle(STARTED) { }</code></li>
+  <li>Inside a CoroutineWorker.doWork? → just use <code>coroutineScope { }</code> inside; the Worker handles cancellation</li>
+  <li>Inside a long-lived custom component (Service, Application)? → <code>CoroutineScope(SupervisorJob() + dispatcher)</code> with manual <code>cancel()</code> on shutdown</li>
+  <li>Inside a suspend function? → <strong>do NOT create a scope</strong>; use <code>coroutineScope { }</code> or <code>supervisorScope { }</code></li>
+  <li>Truly app-wide, no lifecycle, must never die? → custom Application-scoped <code>CoroutineScope</code> stored as a singleton — <strong>not</strong> GlobalScope</li>
+</ol>
+
+<!-- =============== 10. SHARED MUTABLE STATE =============== -->
+<h2 id="s10">10. Shared mutable state — Mutex, Atomic, single-thread, copies</h2>
+
+<p>Coroutines run concurrently. If two coroutines race on a shared mutable variable, you get the same data races as with threads.</p>
+
+<table>
+  <thead><tr><th>Approach</th><th>Best for</th></tr></thead>
+  <tbody>
+    <tr><td><code>Mutex.withLock { }</code></td><td>Coroutine-friendly mutual exclusion. Suspends instead of blocking.</td></tr>
+    <tr><td><code>AtomicInteger / AtomicReference</code></td><td>Simple counters / single-reference updates. CAS-based.</td></tr>
+    <tr><td><code>limitedParallelism(1)</code> dispatcher</td><td>Single-threaded confinement; access state only through that dispatcher.</td></tr>
+    <tr><td>Immutable copies + StateFlow</td><td>Most modern Android code: emit a new state object instead of mutating.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Mutex — coroutine-aware lock</span>
+<span class="kw">val</span> mutex = Mutex()
+<span class="kw">var</span> counter = <span class="num">0</span>
+launch { mutex.withLock { counter++ } }       <span class="com">// safe</span>
+
+<span class="com">// Single-thread dispatcher confinement</span>
+<span class="kw">val</span> stateDispatcher = Dispatchers.Default.limitedParallelism(<span class="num">1</span>)
+<span class="kw">var</span> state = State.Loading
+suspend fun mutate() = withContext(stateDispatcher) { state = State.Loaded(...) }
+
+<span class="com">// Modern preferred: immutable + StateFlow</span>
+<span class="kw">val</span> uiState = MutableStateFlow(UiState.Loading)
+uiState.update { current -&gt; current.copy(loading = false) }    <span class="com">// CAS under the hood</span></code></pre>
+
+<!-- =============== 11. CHANNELS =============== -->
+<h2 id="s11">11. Channels</h2>
+
+<p>A <code>Channel</code> is a hot communication primitive — like a queue with suspending <code>send</code>/<code>receive</code>. Use for one-shot or persistent producer/consumer between coroutines.</p>
+
+<table>
+  <thead><tr><th>Capacity</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td><code>RENDEZVOUS</code> (default)</td><td>No buffer. <code>send</code> suspends until <code>receive</code>.</td></tr>
+    <tr><td><code>BUFFERED</code> (default 64)</td><td>Buffered; <code>send</code> suspends only when full.</td></tr>
+    <tr><td><code>UNLIMITED</code></td><td>Never blocks <code>send</code>; memory unbounded.</td></tr>
+    <tr><td><code>CONFLATED</code></td><td>Buffer of 1; new <code>send</code> overwrites previous unread value.</td></tr>
+    <tr><td>Custom <code>capacity = N</code></td><td>Fixed-size buffer.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="kw">val</span> ch = Channel&lt;Event&gt;(Channel.BUFFERED)
+
+<span class="com">// Producer</span>
+launch { events.forEach { ch.send(it) }; ch.close() }
+
+<span class="com">// Consumer</span>
+launch { <span class="kw">for</span> (e <span class="kw">in</span> ch) handle(e) }    <span class="com">// loop ends when ch is closed</span>
+
+<span class="com">// Non-suspending send (for use in callbacks)</span>
+ch.trySend(event).isSuccess
+
+<span class="com">// Fan-out: one producer, many consumers</span>
+repeat(<span class="num">4</span>) { launch { <span class="kw">for</span> (e <span class="kw">in</span> ch) work(e) } }
+
+<span class="com">// Fan-in: many producers, one consumer</span>
+launch { producerA(ch) }
+launch { producerB(ch) }
+launch { <span class="kw">for</span> (e <span class="kw">in</span> ch) consume(e) }</code></pre>
+
+<div class="callout"><strong>Tip:</strong> for UI events with multiple subscribers, prefer <code>SharedFlow</code> over <code>Channel</code>. Channels are point-to-point.</div>
+
+<!-- =============== 12. SELECT EXPRESSION =============== -->
+<h2 id="s12">12. <code>select</code> expression</h2>
+
+<p>Wait for the first of several suspending sources to complete. Like a multi-source <code>await</code>.</p>
+
+<pre><code><span class="kw">suspend fun</span> raceFirst(a: Deferred&lt;String&gt;, b: Deferred&lt;String&gt;): String =
+    select {
+        a.onAwait { it }
+        b.onAwait { it }
+    }
+
+<span class="com">// Receive from whichever Channel emits first</span>
+select&lt;Unit&gt; {
+    chA.onReceive { handleA(it) }
+    chB.onReceive { handleB(it) }
+    onTimeout(<span class="num">1_000</span>) { showTimeout() }
+}</code></pre>
+
+<!-- =============== 13. HOT VS COLD SOURCES =============== -->
+<h2 id="s13">13. Hot vs cold sources</h2>
+
+<table>
+  <thead><tr><th></th><th>Cold</th><th>Hot</th></tr></thead>
+  <tbody>
+    <tr><td>Examples</td><td>Most <code>Flow</code> (<code>flow{}</code>, <code>flowOf</code>, <code>asFlow</code>)</td><td><code>Channel</code>, <code>StateFlow</code>, <code>SharedFlow</code></td></tr>
+    <tr><td>Producer starts when</td><td>A collector subscribes</td><td>Constructed (or first subscriber for <code>shareIn</code>)</td></tr>
+    <tr><td>Multiple collectors</td><td>Each gets a fresh execution</td><td>All share the same emissions</td></tr>
+    <tr><td>Late subscriber</td><td>Sees the whole flow from start</td><td>StateFlow: current value · SharedFlow: configurable replay · Channel: nothing</td></tr>
+    <tr><td>Termination</td><td>Completes when block ends</td><td>Lives until cancelled</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 14. FLOW BASICS =============== -->
+<h2 id="s14">14. Flow basics</h2>
+
+<p>A <code>Flow&lt;T&gt;</code> is a cold asynchronous sequence. The body inside <code>flow { }</code> only runs when something calls <code>collect</code>.</p>
+
+<pre><code><span class="kw">fun</span> ticker(): Flow&lt;Int&gt; = flow {
+    <span class="kw">var</span> i = <span class="num">0</span>
+    <span class="kw">while</span> (<span class="kw">true</span>) { emit(i++); delay(<span class="num">1000</span>) }
+}
+
+<span class="com">// Each collector restarts the producer</span>
+launch { ticker().collect { print(<span class="str">"A:$it "</span>) } }
+launch { ticker().collect { print(<span class="str">"B:$it "</span>) } }
+<span class="com">// Two independent timers</span></code></pre>
+
+<p>Three things define a Flow:</p>
+<ol>
+  <li>It's a description, not an execution. <code>val f = flow { emit(1) }</code> does nothing on its own.</li>
+  <li>Execution starts on the calling coroutine when <code>collect</code> is called.</li>
+  <li>Cancellation propagates: cancelling the collector's coroutine cancels the producer.</li>
+</ol>
+
+<!-- =============== 15. FLOW BUILDING =============== -->
+<h2 id="s15">15. Flow building</h2>
+
+<table>
+  <thead><tr><th>Builder</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td><code>flowOf(1, 2, 3)</code></td><td>Static values.</td></tr>
+    <tr><td><code>listOf(...).asFlow()</code></td><td>Convert any <code>Iterable</code> / <code>Sequence</code>.</td></tr>
+    <tr><td><code>flow { emit(...) }</code></td><td>Custom emission logic; producer runs on the collector's coroutine.</td></tr>
+    <tr><td><code>channelFlow { send(...) }</code></td><td>Concurrent emission from inside a producer scope; allows multiple producer coroutines.</td></tr>
+    <tr><td><code>callbackFlow { trySend(...); awaitClose { } }</code></td><td>Wrap callback APIs (sensors, sockets, listeners).</td></tr>
+    <tr><td><code>emptyFlow()</code> / <code>flow { }</code></td><td>Empty stream.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Wrapping a callback API into a Flow</span>
+<span class="kw">fun</span> locationUpdates(client: FusedLocationProviderClient): Flow&lt;Location&gt; = callbackFlow {
+    <span class="kw">val</span> cb = <span class="kw">object</span> : LocationCallback() {
+        <span class="kw">override fun</span> onLocationResult(r: LocationResult) {
+            r.lastLocation?.let { trySend(it) }
+        }
+    }
+    client.requestLocationUpdates(req, cb, Looper.getMainLooper())
+    awaitClose { client.removeLocationUpdates(cb) }    <span class="com">// MUST unregister</span>
+}</code></pre>
+
+<div class="callout warn"><strong>Pitfall:</strong> <code>callbackFlow</code> won't compile without <code>awaitClose { }</code> — the framework forces you to specify cleanup.</div>
+
+<!-- =============== 16. FLOW LIFECYCLE =============== -->
+<h2 id="s16">16. Flow lifecycle hooks</h2>
+
+<p>Wrap a Flow with side effects at well-defined points:</p>
+
+<pre><code>flow
+    .onStart      { showSpinner() }                  <span class="com">// before first emission</span>
+    .onEach       { Log.d(<span class="str">"item"</span>, it.toString()) }   <span class="com">// each emission</span>
+    .onCompletion { cause -&gt; hideSpinner() }         <span class="com">// success OR failure</span>
+    .catch        { e -&gt; emit(fallback()) }          <span class="com">// upstream errors only</span>
+    .retry(<span class="num">3</span>)    { e -&gt; e <span class="kw">is</span> IOException }      <span class="com">// re-collect on certain errors</span>
+    .collect      { render(it) }</code></pre>
+
+<table>
+  <thead><tr><th>Operator</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>onStart</code></td><td>Can <code>emit</code> values; useful for placeholders.</td></tr>
+    <tr><td><code>onEach</code></td><td>Side-effect only; doesn't transform.</td></tr>
+    <tr><td><code>onCompletion</code></td><td>Receives the cause (null on success). Runs even on cancellation.</td></tr>
+    <tr><td><code>catch</code></td><td>Catches exceptions thrown <em>upstream</em>; transparent to downstream errors.</td></tr>
+    <tr><td><code>retry / retryWhen</code></td><td>Re-collect upstream from the start. Add backoff in <code>retryWhen</code>.</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 17. FLOW OPERATORS REFERENCE =============== -->
+<h2 id="s17">17. Flow operators — quick reference</h2>
+
+<h3>Intermediate (return Flow)</h3>
+<table>
+  <thead><tr><th>Operator</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>map</code> / <code>mapNotNull</code></td><td>1:1 transform / drop nulls.</td></tr>
+    <tr><td><code>filter</code> / <code>filterNotNull</code> / <code>filterIsInstance</code></td><td>Skip non-matching emissions.</td></tr>
+    <tr><td><code>transform</code></td><td>Emit zero, one, or many per input.</td></tr>
+    <tr><td><code>scan</code> / <code>runningReduce</code></td><td>Accumulate; emit each step.</td></tr>
+    <tr><td><code>take(n)</code> / <code>drop(n)</code> / <code>takeWhile</code> / <code>dropWhile</code></td><td>Slice the stream.</td></tr>
+    <tr><td><code>distinctUntilChanged</code></td><td>Skip consecutive equal emissions.</td></tr>
+    <tr><td><code>debounce(ms)</code></td><td>Emit only after silence of <em>ms</em>.</td></tr>
+    <tr><td><code>sample(ms)</code></td><td>Emit the most recent value every <em>ms</em>.</td></tr>
+    <tr><td><code>flatMapConcat { }</code></td><td>Sequential — wait for inner Flow to finish.</td></tr>
+    <tr><td><code>flatMapMerge { }</code></td><td>Concurrent — interleave emissions from inner Flows.</td></tr>
+    <tr><td><code>flatMapLatest { }</code></td><td>Cancel previous inner Flow on new outer value (search-style).</td></tr>
+    <tr><td><code>combine(otherFlow) { }</code></td><td>Emit on each change; uses latest of every source.</td></tr>
+    <tr><td><code>zip(otherFlow) { }</code></td><td>Pair-wise; waits for one from each.</td></tr>
+    <tr><td><code>buffer(n)</code> / <code>conflate</code></td><td>Decouple producer/consumer — see §19.</td></tr>
+    <tr><td><code>flowOn(ctx)</code></td><td>Switch the upstream context (dispatcher).</td></tr>
+  </tbody>
+</table>
+
+<h3>Terminal (suspend, return value)</h3>
+<table>
+  <thead><tr><th>Operator</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>collect { }</code></td><td>Process each emission.</td></tr>
+    <tr><td><code>collectLatest { }</code></td><td>Cancel previous handler when a new value arrives.</td></tr>
+    <tr><td><code>toList()</code> / <code>toSet()</code></td><td>Materialize all emissions (must terminate).</td></tr>
+    <tr><td><code>first()</code> / <code>firstOrNull()</code></td><td>Cancel after first match.</td></tr>
+    <tr><td><code>last()</code> / <code>single()</code></td><td>Wait for completion.</td></tr>
+    <tr><td><code>fold(init) { }</code></td><td>Reduce to a single value.</td></tr>
+    <tr><td><code>count()</code></td><td>Count emissions.</td></tr>
+    <tr><td><code>launchIn(scope)</code></td><td>Launch collection in a scope; returns Job.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Search-as-you-type pattern</span>
+queryFlow
+    .debounce(<span class="num">300</span>)
+    .distinctUntilChanged()
+    .flatMapLatest { q -&gt; api.searchFlow(q) }
+    .catch { emit(emptyList()) }
+    .collect { render(it) }</code></pre>
+
+<!-- =============== 18. SHAREDFLOW & STATEFLOW =============== -->
+<h2 id="s18">18. SharedFlow &amp; StateFlow</h2>
+
+<p>Hot replacements for LiveData. Use StateFlow for state, SharedFlow for events.</p>
+
+<table>
+  <thead><tr><th></th><th>StateFlow</th><th>SharedFlow</th></tr></thead>
+  <tbody>
+    <tr><td>Initial value</td><td>Required</td><td>Optional (replay)</td></tr>
+    <tr><td>Conflated</td><td>Yes (drops equal values)</td><td>No</td></tr>
+    <tr><td>Late subscriber sees</td><td>Current value</td><td>Configurable replay buffer</td></tr>
+    <tr><td>Best for</td><td>UI state (single source of truth)</td><td>One-shot events (toasts, navigation)</td></tr>
+    <tr><td>Thread safety</td><td>Yes</td><td>Yes</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// State — current value of UI</span>
+<span class="kw">val</span> _state = MutableStateFlow(UiState.Loading)
+<span class="kw">val</span> state: StateFlow&lt;UiState&gt; = _state.asStateFlow()
+_state.value = UiState.Success(...)
+<span class="com">// or atomic update</span>
+_state.update { it.copy(loading = <span class="kw">false</span>) }
+
+<span class="com">// Events — one-shot, no conflation</span>
+<span class="kw">val</span> _events = MutableSharedFlow&lt;Event&gt;(replay = <span class="num">0</span>, extraBufferCapacity = <span class="num">1</span>)
+<span class="kw">val</span> events: SharedFlow&lt;Event&gt; = _events.asSharedFlow()
+viewModelScope.launch { _events.emit(Event.NavigateBack) }</code></pre>
+
+<h3>Converting cold → hot: <code>stateIn</code> / <code>shareIn</code></h3>
+<pre><code><span class="kw">val</span> users: StateFlow&lt;List&lt;User&gt;&gt; = repository.observeUsers()
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(<span class="num">5_000</span>),     <span class="com">// see below</span>
+        initialValue = emptyList()
+    )</code></pre>
+
+<table>
+  <thead><tr><th><code>SharingStarted</code></th><th>When upstream runs</th></tr></thead>
+  <tbody>
+    <tr><td><code>Eagerly</code></td><td>Always (wastes battery if UI hidden)</td></tr>
+    <tr><td><code>Lazily</code></td><td>From first subscriber, never stops</td></tr>
+    <tr><td><code>WhileSubscribed(stopTimeoutMillis = 5000)</code></td><td>Starts on first sub, stops 5 s after last sub. <strong>Recommended for UI Flows on Android.</strong></td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Why 5 seconds?</strong> Bridges configuration changes (rotation typically &lt; 1 s) and brief background trips, without keeping upstream alive when the user has truly navigated away.</div>
+
+<!-- =============== 19. FLOW CONTEXT & THREADING =============== -->
+<h2 id="s19">19. Flow context, buffer, conflate</h2>
+
+<p>Flow respects context preservation: the producer runs on whatever dispatcher the collector is on, unless you use <code>flowOn</code>. <code>flowOn</code> only affects upstream operators.</p>
+
+<pre><code>flow {
+    emit(loadFromDisk())            <span class="com">// runs on IO</span>
+}
+.map { transform(it) }              <span class="com">// also on IO (still upstream of flowOn)</span>
+.flowOn(Dispatchers.IO)
+.collect { render(it) }             <span class="com">// runs on caller's dispatcher (Main)</span></code></pre>
+
+<table>
+  <thead><tr><th>Operator</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>flowOn(ctx)</code></td><td>Upstream runs on <code>ctx</code>; downstream stays on caller.</td></tr>
+    <tr><td><code>buffer(n)</code></td><td>Producer doesn't wait for consumer; intermediate queue of size <em>n</em>.</td></tr>
+    <tr><td><code>conflate()</code></td><td>If consumer is slow, drop intermediate values. Buffer size 1, "drop oldest".</td></tr>
+  </tbody>
+</table>
+
+<pre><code>fastProducer
+    .conflate()                      <span class="com">// only the latest matters (e.g., scroll position)</span>
+    .collect { renderSlow(it) }
+
+<span class="com">// or: process at producer's rate while consumer is slow</span>
+fastProducer
+    .buffer(capacity = <span class="num">10</span>)
+    .collect { processSlow(it) }</code></pre>
+
+<!-- =============== 20. TESTING =============== -->
+<h2 id="s20">20. Testing coroutines</h2>
+
+<p>Use <code>runTest { }</code> from <code>kotlinx-coroutines-test</code>. It runs in virtual time — <code>delay(60_000)</code> completes immediately for the test.</p>
+
+<pre><code><span class="kw">@OptIn</span>(ExperimentalCoroutinesApi::<span class="kw">class</span>)
+<span class="kw">class</span> MyVmTest {
+    <span class="kw">private val</span> dispatcher = StandardTestDispatcher()
+
+    <span class="kw">@Before fun</span> setUp() { Dispatchers.setMain(dispatcher) }
+    <span class="kw">@After  fun</span> tearDown() { Dispatchers.resetMain() }
+
+    <span class="kw">@Test fun</span> loads_emits_success() = runTest {
+        <span class="kw">val</span> repo = FakeRepo(User(<span class="str">"42"</span>))
+        <span class="kw">val</span> vm = MyVm(repo)
+
+        vm.state.test {                                 <span class="com">// Turbine</span>
+            assertEquals(UiState.Loading, awaitItem())
+            vm.load(<span class="str">"42"</span>)
+            advanceUntilIdle()                          <span class="com">// run pending coroutines</span>
+            assertEquals(UiState.Success(User(<span class="str">"42"</span>)), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}</code></pre>
+
+<table>
+  <thead><tr><th>Helper</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>runTest { }</code></td><td>Test scope with virtual time. Replaces <code>runBlocking</code>.</td></tr>
+    <tr><td><code>StandardTestDispatcher</code></td><td>Doesn't auto-run coroutines; you call <code>runCurrent</code> / <code>advanceTimeBy</code>.</td></tr>
+    <tr><td><code>UnconfinedTestDispatcher</code></td><td>Auto-runs each coroutine eagerly until first suspension. Easier but less precise.</td></tr>
+    <tr><td><code>advanceTimeBy(ms)</code></td><td>Move virtual time forward; runs scheduled coroutines.</td></tr>
+    <tr><td><code>advanceUntilIdle()</code></td><td>Run all scheduled coroutines until none left.</td></tr>
+    <tr><td><code>runCurrent()</code></td><td>Run currently scheduled (non-delayed) coroutines.</td></tr>
+    <tr><td><code>flow.test { }</code> (Turbine)</td><td>Assert Flow emissions one by one with timeouts.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Tip:</strong> use <code>StandardTestDispatcher</code> when timing matters (debounce, retry-with-delay). Use <code>UnconfinedTestDispatcher</code> for simple "did it emit?" tests.</div>
+
+<!-- =============== 21. COMMON PATTERNS =============== -->
+<h2 id="s21">21. Common patterns</h2>
+
+<h3>Parallel decomposition</h3>
+<pre><code><span class="kw">suspend fun</span> loadAll() = coroutineScope {
+    <span class="kw">val</span> u = async { api.user() }
+    <span class="kw">val</span> o = async { api.orders() }
+    <span class="kw">val</span> n = async { api.notifs() }
+    Combined(u.<span class="kw">await</span>(), o.<span class="kw">await</span>(), n.<span class="kw">await</span>())
+}</code></pre>
+
+<h3>Sequential with shared timeout</h3>
+<pre><code>withTimeout(<span class="num">5_000</span>) {
+    <span class="kw">val</span> a = stepOne()
+    <span class="kw">val</span> b = stepTwo(a)
+    stepThree(b)
+}</code></pre>
+
+<h3>Best-effort parallel (failure isolation)</h3>
+<pre><code>supervisorScope {
+    launch { runCatching { riskA() }.onFailure { Log.w(...) } }
+    launch { runCatching { riskB() }.onFailure { Log.w(...) } }
+}</code></pre>
+
+<h3>Debounced search</h3>
+<pre><code>queryFlow
+    .debounce(<span class="num">300</span>)
+    .distinctUntilChanged()
+    .flatMapLatest { q -&gt; api.searchFlow(q) }
+    .collect(::render)</code></pre>
+
+<h3>Retry with exponential backoff</h3>
+<pre><code><span class="kw">suspend fun</span> &lt;T&gt; retry(times: Int = <span class="num">3</span>, base: Long = <span class="num">200</span>, block: <span class="kw">suspend</span> () -&gt; T): T {
+    <span class="kw">var</span> last: Throwable? = <span class="kw">null</span>
+    repeat(times) { i -&gt;
+        <span class="kw">try</span> { <span class="kw">return</span> block() }
+        <span class="kw">catch</span> (e: CancellationException) { <span class="kw">throw</span> e }
+        <span class="kw">catch</span> (e: Throwable) {
+            last = e
+            delay(base * (<span class="num">1L</span> shl i) + Random.nextLong(<span class="num">0</span>, base))    <span class="com">// jitter</span>
+        }
+    }
+    <span class="kw">throw</span> last!!
+}</code></pre>
+
+<h3>Single-flight (dedupe concurrent calls for the same key)</h3>
+<pre><code><span class="kw">private val</span> inFlight = mutableMapOf&lt;String, Deferred&lt;User&gt;&gt;()
+<span class="kw">private val</span> mu = Mutex()
+
+<span class="kw">suspend fun</span> getUser(id: String): User {
+    <span class="kw">val</span> existing = mu.withLock { inFlight[id] }
+    <span class="kw">if</span> (existing != <span class="kw">null</span>) <span class="kw">return</span> existing.<span class="kw">await</span>()
+
+    <span class="kw">val</span> deferred = scope.async { api.fetch(id) }
+    mu.withLock { inFlight[id] = deferred }
+    <span class="kw">try</span> { <span class="kw">return</span> deferred.<span class="kw">await</span>() }
+    <span class="kw">finally</span> { mu.withLock { inFlight.remove(id) } }
+}</code></pre>
+
+<!-- =============== 22. BEST PRACTICES =============== -->
+<h2 id="s22">22. Best practices — short list</h2>
+<ul>
+  <li>Use <code>suspend</code> functions in your repository / use-case layer; let them be cancelled by the caller's scope.</li>
+  <li>Store mutable shared state behind a single source of truth (StateFlow + <code>update { }</code>), not scattered <code>var</code>s.</li>
+  <li>Prefer <code>SharedFlow</code> + <code>StateFlow</code> over <code>Channel</code> for any UI-facing stream.</li>
+  <li>For Android UI Flows, use <code>stateIn(viewModelScope, WhileSubscribed(5000), initial)</code> + <code>collectAsStateWithLifecycle()</code> in Compose.</li>
+  <li>Always specify a dispatcher when entering blocking code (<code>withContext(Dispatchers.IO) { dao.query() }</code>).</li>
+  <li>Use <code>SupervisorJob</code> for app-/screen-level scopes and for parallel branches that should be independent.</li>
+  <li>In <code>callbackFlow</code>, never forget <code>awaitClose { unregister() }</code>.</li>
+  <li>Pass test dispatchers via constructor (or via Hilt) so production scopes are testable.</li>
+  <li>Prefer <code>runTest</code> + virtual time over <code>delay</code>-based real-time tests.</li>
+  <li>Inject scopes into long-lived components (Application, Service) rather than using <code>GlobalScope</code>.</li>
+  <li>Mark long-running suspend functions cancellable by inserting <code>yield()</code> or <code>ensureActive()</code> in CPU loops.</li>
+  <li>Wrap exceptions at module boundaries — don't leak provider-specific types (HttpException, SQLiteException) up to the UI.</li>
+</ul>
+
+<!-- =============== 23. COMMON MISTAKES =============== -->
+<h2 id="s23">23. Common mistakes — anti-patterns</h2>
+<div class="two-col">
+  <div class="col-card bad"><strong>GlobalScope.launch</strong>Bypasses structured concurrency, ignores cancellation, easy to leak. Use a properly-scoped CoroutineScope.</div>
+  <div class="col-card bad"><strong>runBlocking on Main</strong>Blocks the UI thread; defeats the purpose of coroutines. Reserved for tests, <code>main()</code>, and bridging to legacy synchronous APIs.</div>
+  <div class="col-card bad"><strong>Catching CancellationException</strong>Swallowing it breaks structured cancellation. Always rethrow or catch a more specific subtype.</div>
+  <div class="col-card bad"><strong>async without await</strong>Exception silently held by the Deferred. Either always await, or use <code>launch</code> with a handler.</div>
+  <div class="col-card bad"><strong>Tight CPU loop without yield</strong>Not cancellable. Add <code>yield()</code> or <code>ensureActive()</code> periodically.</div>
+  <div class="col-card bad"><strong>Mutable state across coroutines without sync</strong>Race conditions. Use <code>Mutex</code>, <code>Atomic</code>, or single-thread dispatcher confinement.</div>
+  <div class="col-card bad"><strong>Calling suspend from inside Java</strong>You need a bridge: blocking (<code>runBlocking</code>), callback, <code>future { }</code>, or <code>promise { }</code>.</div>
+  <div class="col-card bad"><strong>Plain <code>collect</code> in Activity/Fragment</strong>Continues collecting in background — drains battery. Use <code>repeatOnLifecycle(STARTED)</code> or <code>collectAsStateWithLifecycle</code>.</div>
+  <div class="col-card bad"><strong>Multiple producers writing to the same StateFlow</strong>Last write wins; intermediate states may be lost. Use a single owner or <code>update { }</code> for atomic compound updates.</div>
+  <div class="col-card bad"><strong>Forgot <code>awaitClose</code> in callbackFlow</strong>Compile error — but if you somehow trick it, you leak listeners.</div>
+</div>
+
+<!-- =============== 24. ANDROID INTEGRATION =============== -->
+<h2 id="s24">24. Android integration cheat lines</h2>
+<pre><code><span class="com">// ViewModel</span>
+<span class="kw">class</span> MyVm(<span class="kw">val</span> repo: Repo) : ViewModel() {
+    <span class="kw">val</span> state = repo.observe()
+        .stateIn(viewModelScope, WhileSubscribed(<span class="num">5_000</span>), UiState.Loading)
+    <span class="kw">fun</span> refresh() = viewModelScope.launch { repo.refresh() }
+}
+
+<span class="com">// Compose</span>
+<span class="kw">@Composable fun</span> Screen(vm: MyVm = hiltViewModel()) {
+    <span class="kw">val</span> state <span class="kw">by</span> vm.state.collectAsStateWithLifecycle()
+    Render(state)
+}
+
+<span class="com">// Activity / Fragment (View system)</span>
+lifecycleScope.launch {
+    repeatOnLifecycle(Lifecycle.State.STARTED) {
+        vm.state.collect(::render)
+    }
+}
+
+<span class="com">// Background work — survives process death</span>
+<span class="kw">class</span> SyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, p) {
+    <span class="kw">override suspend fun</span> doWork(): Result {
+        repo.sync()
+        <span class="kw">return</span> Result.success()
+    }
+}
+
+<span class="com">// Convert FCM-ish callback to Flow</span>
+<span class="kw">fun</span> incomingMessages(): Flow&lt;Message&gt; = callbackFlow {
+    <span class="kw">val</span> listener = MessageListener { trySend(it) }
+    api.subscribe(listener)
+    awaitClose { api.unsubscribe(listener) }
+}</code></pre>
+
+<!-- =============== COMPARISON SECTION =============== -->
+<h2 id="scompare">★ Coroutines vs RxJava vs Executors vs Threads vs Callbacks</h2>
+
+<p>The five ways to do async work on the JVM/Android. Each has its place — but for new Kotlin/Android code in 2026, coroutines win for almost every use case. Here's the honest side-by-side.</p>
+
+<table>
+  <thead><tr><th></th><th>Coroutines</th><th>RxJava</th><th>Executors / Future</th><th>Raw Threads</th><th>Callbacks</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Primitive</strong></td><td><code>suspend fun</code> + <code>Continuation</code></td><td><code>Observable</code> + <code>Schedulers</code></td><td><code>Runnable/Callable</code> + <code>Future</code></td><td><code>Thread</code></td><td>function references</td></tr>
+    <tr><td><strong>Composition</strong></td><td>Suspend funs compose like normal funs</td><td>Operator chains</td><td>Manual <code>Future.thenApply</code></td><td>Manual</td><td>Nesting (callback hell)</td></tr>
+    <tr><td><strong>Cancellation</strong></td><td>Structured + automatic</td><td><code>dispose()</code> — manual</td><td><code>future.cancel()</code> — best effort</td><td><code>thread.interrupt()</code> — best effort</td><td>Not built-in</td></tr>
+    <tr><td><strong>Backpressure</strong></td><td>Built-in (cold Flow); Channel for explicit</td><td>Built-in (Flowable + strategies)</td><td>Manual</td><td>Manual</td><td>Manual</td></tr>
+    <tr><td><strong>Memory cost</strong></td><td>~hundreds of bytes per coroutine</td><td>Subscription + closure overhead</td><td>~MB per Future + thread</td><td>~1 MB stack per thread</td><td>Just a closure</td></tr>
+    <tr><td><strong>Concurrent count practical</strong></td><td>Millions on a few threads</td><td>Thousands</td><td>Hundreds</td><td>Hundreds</td><td>n/a</td></tr>
+    <tr><td><strong>Mental model</strong></td><td>Sequential code</td><td>Reactive declarative pipelines</td><td>Producer/consumer</td><td>Imperative</td><td>Inverted control flow</td></tr>
+    <tr><td><strong>Threading model</strong></td><td>Cooperative on small pool (dispatchers)</td><td>Schedulers (io / computation / single)</td><td>OS-managed pool</td><td>OS-managed</td><td>Whoever called you</td></tr>
+    <tr><td><strong>Library size</strong></td><td>~20 KB</td><td>~1 MB</td><td>JDK builtin</td><td>JDK builtin</td><td>n/a</td></tr>
+    <tr><td><strong>Test ergonomics</strong></td><td><code>runTest</code> + virtual time → great</td><td><code>Schedulers.trampoline</code> + <code>TestObserver</code></td><td>Hard</td><td>Hard</td><td>Hard</td></tr>
+    <tr><td><strong>Lifecycle integration (Android)</strong></td><td>First-class (<code>viewModelScope</code>, etc.)</td><td>External (<code>AutoDispose</code>, RxLifecycle)</td><td>None</td><td>None</td><td>Manual</td></tr>
+    <tr><td><strong>Language support</strong></td><td><code>suspend</code> is a keyword</td><td>Library only</td><td>Library only</td><td>Library only</td><td>Language native (just functions)</td></tr>
+  </tbody>
+</table>
+
+<h3>Why coroutines won (the short version)</h3>
+<ol>
+  <li><strong>Code reads sequentially.</strong> Stack traces are real. Debugger steps line by line. No "everything is wrapped in a flatMap" mental gymnastics.</li>
+  <li><strong>Structured concurrency is the default.</strong> No leaked work, no manual <code>CompositeDisposable</code> bookkeeping.</li>
+  <li><strong>Lighter than threads</strong> (millions vs thousands), <strong>lighter than RxJava runtime</strong> (~50× smaller binary).</li>
+  <li><strong>Compiler-supported.</strong> <code>suspend</code> is checked at compile time; you can only call suspend from suspend or a coroutine builder. RxJava can be misused without the compiler noticing.</li>
+  <li><strong>First-class Android lifecycle integration</strong> via Jetpack — no third-party dance.</li>
+</ol>
+
+<h3>When to still pick something else (honest)</h3>
+<ul>
+  <li><strong>RxJava</strong> — large existing codebase. Migrate <em>incrementally</em> using <code>kotlinx-coroutines-rx2/3</code> bridges (<code>asFlow()</code>, <code>rxSingle { }</code>); don't rewrite for rewrite's sake. Also: extremely complex reactive pipelines with 10+ chained operators where Rx's operator catalogue (~1000) is genuinely deeper than Flow's (~80).</li>
+  <li><strong>Executors / CompletableFuture</strong> — Java-only codebase, or you need to integrate with Java APIs that take an <code>Executor</code> (some frameworks do).</li>
+  <li><strong>Raw Threads</strong> — very rare. If you genuinely need a long-running blocking thread (e.g., custom event loop, native-API thread affinity), prefer <code>Dispatchers.IO.limitedParallelism(1)</code> or a <code>Service</code>. Don't reach for <code>Thread()</code> directly in Kotlin code.</li>
+  <li><strong>Callbacks</strong> — when wrapping platform APIs that <em>are</em> callbacks (CameraX, sensors, Bluetooth, View listeners). Wrap them into Flow/suspend at the boundary using <code>callbackFlow</code> or <code>suspendCancellableCoroutine</code>; everything above the boundary stays coroutines.</li>
+</ul>
+
+<h3>Conversion patterns (the bridges between worlds)</h3>
+<table>
+  <thead><tr><th>From → To</th><th>Code</th></tr></thead>
+  <tbody>
+    <tr><td>Callback → suspend</td><td><code>suspendCancellableCoroutine { cont -&gt; api.fetch { cont.resume(it) } }</code></td></tr>
+    <tr><td>Callback (multi-shot) → Flow</td><td><code>callbackFlow { ...; awaitClose { unregister() } }</code></td></tr>
+    <tr><td>Future → suspend</td><td><code>future.await()</code> (from <code>kotlinx-coroutines-jdk8</code>)</td></tr>
+    <tr><td>RxJava Observable → Flow</td><td><code>observable.asFlow()</code> (from <code>kotlinx-coroutines-rx2/3</code>)</td></tr>
+    <tr><td>RxJava Single → suspend</td><td><code>single.<span class="kw">await</span>()</code></td></tr>
+    <tr><td>Suspend → Future</td><td><code>scope.future { suspendBlock() }</code></td></tr>
+    <tr><td>Suspend → Callback</td><td><code>scope.launch { val r = suspendBlock(); callback(r) }</code></td></tr>
+    <tr><td>Blocking call → coroutine</td><td><code>withContext(Dispatchers.IO) { blockingCall() }</code></td></tr>
+    <tr><td>Thread → coroutine pool</td><td>Replace <code>Thread { ... }.start()</code> with <code>scope.launch(Dispatchers.IO) { ... }</code></td></tr>
+    <tr><td>LiveData → Flow / vice versa</td><td><code>liveData.asFlow()</code> / <code>flow.asLiveData()</code></td></tr>
+  </tbody>
+</table>
+
+<h3>The decision tree for new code</h3>
+<ol>
+  <li><strong>New Kotlin/Android code, any kind of async work?</strong> → Coroutines.</li>
+  <li><strong>Wrapping a callback API?</strong> → <code>callbackFlow</code> (multi-shot) or <code>suspendCancellableCoroutine</code> (one-shot). Above that boundary: coroutines.</li>
+  <li><strong>Working in an RxJava codebase?</strong> → Use bridges. Don't migrate top-down; migrate edges first as you touch them.</li>
+  <li><strong>Pure Java / framework requires Executor?</strong> → Use Executors. If your app code is Kotlin, wrap the Executor in a CoroutineDispatcher: <code>executor.asCoroutineDispatcher()</code>.</li>
+  <li><strong>Need a thread for native code or a long-running blocking loop?</strong> → <code>Dispatchers.IO.limitedParallelism(1)</code>. Don't <code>new Thread()</code>.</li>
+</ol>
+
+<!-- =============== 25. ONE-PAGE RECALL CARD =============== -->
+<h2 id="s25">25. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The 30-second mental model</h3>
+  <p>Coroutines = suspendable computations. Compiler turns each <code>suspend</code> function into a state machine taking a <code>Continuation</code>. Suspension means returning <code>COROUTINE_SUSPENDED</code> with state preserved; resumption is a callback that jumps to the next state. Threads are not held while a coroutine waits.</p>
+
+  <h3>Builders</h3>
+  <ul>
+    <li><code>launch</code> → fire-and-forget, returns <code>Job</code></li>
+    <li><code>async</code> → result needed (parallel), returns <code>Deferred</code></li>
+    <li><code>runBlocking</code> → tests / bridging only</li>
+    <li><code>coroutineScope { }</code> → all-or-nothing parallel</li>
+    <li><code>supervisorScope { }</code> → independent parallel</li>
+    <li><code>withContext(d) { }</code> → switch dispatcher for one block</li>
+    <li><code>withTimeout(ms) { }</code> / <code>withTimeoutOrNull</code></li>
+  </ul>
+
+  <h3>Dispatchers</h3>
+  <ul>
+    <li><strong>Main</strong> — UI</li>
+    <li><strong>Default</strong> — CPU</li>
+    <li><strong>IO</strong> — blocking I/O</li>
+    <li><strong>limitedParallelism(N)</strong> — cap concurrency</li>
+  </ul>
+
+  <h3>Structured concurrency</h3>
+  <ul>
+    <li>Parent waits for children to finish</li>
+    <li>Cancel parent → cancels all children</li>
+    <li>Child fails → cancels parent (unless supervisor)</li>
+    <li>Cancellation = <code>CancellationException</code> at suspension points</li>
+    <li>Cooperative — tight CPU loop needs <code>yield()</code> / <code>ensureActive()</code></li>
+  </ul>
+
+  <h3>Hot vs cold</h3>
+  <ul>
+    <li>Cold: <code>flow { }</code>, restarts per collector</li>
+    <li>Hot: <code>StateFlow</code> (state + initial), <code>SharedFlow</code> (events + replay), <code>Channel</code> (point-to-point)</li>
+    <li><code>stateIn(WhileSubscribed(5000))</code> for UI flows</li>
+  </ul>
+
+  <h3>Flow operators you'll use daily</h3>
+  <ul>
+    <li><code>map</code>, <code>filter</code>, <code>distinctUntilChanged</code></li>
+    <li><code>debounce</code>, <code>sample</code>, <code>scan</code></li>
+    <li><code>flatMapLatest</code> (search), <code>flatMapMerge</code> (parallel), <code>flatMapConcat</code> (sequential)</li>
+    <li><code>combine</code> (latest of all), <code>zip</code> (pairwise)</li>
+    <li><code>flowOn</code> (upstream context), <code>buffer</code>, <code>conflate</code></li>
+    <li><code>onStart</code> / <code>onEach</code> / <code>onCompletion</code> / <code>catch</code> / <code>retry</code></li>
+  </ul>
+
+  <h3>Testing</h3>
+  <ul>
+    <li><code>runTest { }</code> + virtual time</li>
+    <li><code>StandardTestDispatcher</code> (control timing) vs <code>UnconfinedTestDispatcher</code> (eager)</li>
+    <li><code>advanceTimeBy</code>, <code>advanceUntilIdle</code>, <code>runCurrent</code></li>
+    <li><code>Turbine.test { awaitItem() }</code> for Flow</li>
+    <li><code>Dispatchers.setMain(d)</code> in setUp; <code>resetMain()</code> in tearDown</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li><code>GlobalScope</code></li>
+    <li><code>runBlocking</code> on Main</li>
+    <li>Catching <code>CancellationException</code> with bare <code>Throwable</code></li>
+    <li><code>async</code> without <code>await</code></li>
+    <li>Plain <code>collect</code> in lifecycle-aware code (use <code>repeatOnLifecycle</code>)</li>
+    <li>Mutating shared state from multiple coroutines without sync</li>
+    <li>Forgetting <code>awaitClose</code> in <code>callbackFlow</code></li>
+  </ul>
+</div>
+
+<!-- =============== END =============== -->
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read this once for understanding · skim sections 22-25 the night before any Android interview.
+    Pair with the <strong>Top 210 Android Interview Questions</strong> guide for full coverage.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'coro-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
