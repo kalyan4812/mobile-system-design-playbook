@@ -773,6 +773,176 @@ Memorize this 5-step answer. Delivers in 30 seconds, demonstrates depth:
 </ol>
 </div>
 
+<!-- =============== HOW COMPOSE COMPILER TRANSFORMS YOUR CODE =============== -->
+<h2 id="scompiler">★ How the Compose Compiler transforms your code (the bytecode walkthrough)</h2>
+
+<p>The Compose Compiler is a Kotlin compiler plugin. Every <code>@Composable</code> function gets rewritten at compile time. This section walks through exactly what changes and why — the level of detail interviewers love.</p>
+
+<h3>Why a compiler plugin (and not a runtime library)?</h3>
+<p>Compose's runtime needs to know things about your code that ordinary Kotlin can't express:</p>
+<ul>
+  <li>Which functions are restartable groups (so the runtime can re-execute them in isolation)</li>
+  <li>Which parameters changed since last call (to decide skipping)</li>
+  <li>Where each call is positioned in the source (for positional memoization)</li>
+  <li>Which lambdas are stable (for memoization)</li>
+</ul>
+<p>None of this can be expressed cleanly in plain Kotlin. The Compose Compiler runs as part of the Kotlin compilation pipeline (using Kotlin IR, the same intermediate representation that <code>suspend</code> uses). Same Kotlin compiler team that built suspend built Compose Compiler — and the transformations look very similar.</p>
+
+<h3>The four transformations applied to every @Composable</h3>
+
+<table>
+  <thead><tr><th>#</th><th>Transformation</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Inject hidden parameters: <code>$composer: Composer</code>, <code>$changed: Int</code>, <code>$default: Int</code></td><td>The Composer threads runtime context; bitmasks track which params changed</td></tr>
+    <tr><td>2</td><td>Wrap body in <code>startRestartGroup(key)</code> / <code>endRestartGroup()</code></td><td>Creates a RecomposeScope — a unit Compose can re-execute on its own</td></tr>
+    <tr><td>3</td><td>Add skip logic at function entry — early return if all params unchanged AND stable</td><td>This is "smart recomposition" in action; saves the body from running</td></tr>
+    <tr><td>4</td><td>Add <code>updateScope { c, _ -&gt; ... }</code> at function exit</td><td>Tells the runtime how to re-invoke this function later (for invalidation)</td></tr>
+  </tbody>
+</table>
+
+<h3>Side-by-side: source → what the compiler emits</h3>
+
+<p><strong>You write:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Greeting(name: String) {
+    Text(<span class="str">"Hello $name"</span>)
+}</code></pre>
+
+<p><strong>Compiler emits (simplified, but conceptually accurate):</strong></p>
+<pre><code><span class="kw">fun</span> Greeting(
+    name: String,
+    $composer: Composer,
+    $changed: Int
+) {
+    $composer.startRestartGroup(<span class="num">0xABCD</span>)                  <span class="com">// (2) restart group with stable key</span>
+
+    <span class="com">// (3) skip-logic block — populate `dirty` bits and decide</span>
+    <span class="kw">var</span> dirty = $changed
+    <span class="kw">if</span> ($changed <span class="kw">and</span> <span class="num">0b1</span> == <span class="num">0</span>)
+        dirty = dirty <span class="kw">or</span> <span class="kw">if</span> ($composer.changed(name)) <span class="num">0b100</span> <span class="kw">else</span> <span class="num">0b10</span>
+
+    <span class="kw">if</span> (dirty <span class="kw">and</span> <span class="num">0b11</span> != <span class="num">0b10</span> || !$composer.skipping) {
+        <span class="com">// not skipping — actually run the body</span>
+        Text(<span class="str">"Hello $name"</span>, $composer, <span class="num">0</span>)
+    } <span class="kw">else</span> {
+        <span class="com">// skipping — advance the slot table without running body</span>
+        $composer.skipToGroupEnd()
+    }
+
+    <span class="com">// (4) updateScope — captures how to re-invoke this function on invalidation</span>
+    $composer.endRestartGroup()?.updateScope { c, _ -&gt;
+        Greeting(name, c, $changed <span class="kw">or</span> <span class="num">1</span>)
+    }
+}</code></pre>
+
+<p>Three things to notice:</p>
+<ul>
+  <li>The original 1-line function became ~15 lines of generated code. Compose runtime overhead is <em>per-Composable</em>, paid in compiled bytecode size, not in runtime allocation.</li>
+  <li>Calling <code>Greeting("Sai")</code> in user code becomes <code>Greeting("Sai", $composer, $changed)</code> — the Composer is threaded through implicitly. You never see it.</li>
+  <li>The early skip (<code>$composer.skipToGroupEnd()</code>) is the entire performance story. When skip happens, the body of the function literally doesn't run.</li>
+</ul>
+
+<h3>The <code>$changed</code> bitmask explained bit-by-bit</h3>
+
+<p>Each parameter gets <strong>3 bits</strong> in the <code>$changed</code> Int. So a Composable with up to 10 params packs everything into one Int (32 bits / 3 bits = 10 + spare bits).</p>
+
+<table>
+  <thead><tr><th>Bit pattern (per param)</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>000</code> (0)</td><td>Unknown — caller didn't tell us, must check via <code>$composer.changed(value)</code></td></tr>
+    <tr><td><code>001</code> (1)</td><td>Same — value identical to last time, skip body</td></tr>
+    <tr><td><code>010</code> (2)</td><td>Different — value changed since last time</td></tr>
+    <tr><td><code>100</code> (4)</td><td>Static — value is a compile-time constant; trivially equal</td></tr>
+  </tbody>
+</table>
+
+<p>The skip check is essentially: "for every param, are all bits saying it's unchanged AND the type is stable? If yes, skip."</p>
+
+<h3>How <code>updateScope</code> enables invalidation</h3>
+
+<p>The <code>updateScope</code> lambda captures the function reference + current arguments. When the snapshot system invalidates a State that this scope read, the Recomposer pulls this lambda out and invokes it — re-running the function with the same args, but the runtime now knows to re-fetch State values.</p>
+
+<pre><code><span class="com">// What updateScope does conceptually:</span>
+$composer.endRestartGroup()?.updateScope { c, $force -&gt;
+    Greeting(name, c, $changed <span class="kw">or</span> <span class="num">1</span>)    <span class="com">// re-invoke with `or 1` = "force check params"</span>
+}</code></pre>
+
+<p>Without <code>updateScope</code>, Compose would have no way to re-run just this function — it would need to re-run the entire root. <em>This single piece of generated code is what makes targeted invalidation possible.</em></p>
+
+<h3>Lambda memoization — why <code>onClick = { ... }</code> doesn't break skipping</h3>
+
+<p>Naive thinking: "every recomposition creates a new lambda; child Composable sees a different lambda each time and can't skip." That would be correct if the compiler didn't help.</p>
+
+<p>The Compose Compiler runs an additional pass: <strong>lambda memoization</strong>. For lambdas with no captures or only stable captures, it wraps them in a <code>remember</code>-equivalent slot.</p>
+
+<pre><code><span class="com">// You write:</span>
+<span class="anno">@Composable fun</span> Parent(vm: MyViewModel) {
+    Button(onClick = { vm.click() }) { Text(<span class="str">"Tap"</span>) }
+}
+
+<span class="com">// Compiler emits roughly:</span>
+<span class="anno">@Composable fun</span> Parent(vm: MyViewModel, $composer: Composer, $changed: Int) {
+    $composer.startRestartGroup(...)
+    <span class="kw">val</span> onClick = remember(vm) { { vm.click() } }   <span class="com">// memoized!</span>
+    Button(onClick, ...)
+    $composer.endRestartGroup()?.updateScope { ... }
+}</code></pre>
+
+<p>Now the same lambda instance is reused across recompositions — Button sees a stable parameter and stays skippable.</p>
+
+<p>Caveat: this only works for lambdas with stable captures. If your lambda captures an unstable type, the compiler can't memoize it.</p>
+
+<h3>Default parameter handling — the <code>$default</code> bitmask</h3>
+
+<p>For <code>@Composable fun X(a: String = "x", b: Int = 0)</code>, the compiler emits an extra <code>$default: Int</code> parameter. Each bit indicates "this argument was supplied by caller (0)" or "use the default value (1)." This avoids the JVM's standard default-argument mechanism (which generates an extra dispatch method per default permutation) — keeps Compose call sites cheap.</p>
+
+<h3>Stability inference — the compiler's algorithm</h3>
+
+<p>For each class your code uses, the Compose Compiler decides one of three things:</p>
+<ul>
+  <li><strong>Stable</strong> — Compose can skip Composables taking this type when value is equal</li>
+  <li><strong>Unstable</strong> — must always recompose; never skip</li>
+  <li><strong>Unknown</strong> (rare) — falls back to runtime <code>$composer.changed(...)</code> check</li>
+</ul>
+
+<p>The algorithm in plain English:</p>
+<ol>
+  <li>If the type is annotated <code>@Stable</code> or <code>@Immutable</code>, it's stable.</li>
+  <li>If the type is a primitive, String, or function type, it's stable.</li>
+  <li>If the type is a data class with all-stable properties AND all properties are <code>val</code>, it's stable.</li>
+  <li>If the type is from another module the compiler can't see fully, it's unstable.</li>
+  <li>If the type contains a <code>var</code>, an interface, or an unstable property, it's unstable.</li>
+</ol>
+
+<h3>Strong skipping mode (Compose Compiler 1.5.4+)</h3>
+
+<p>In strong skipping mode, even unstable parameters can be treated as skippable if their <code>equals()</code> returns true. This dramatically reduces stability bugs in practice. Enabled by default in Compose 1.6+.</p>
+
+<p>Trade-off: <code>equals()</code> on a deep object graph is O(N) — for huge data classes the equality check might cost more than just recomposing.</p>
+
+<h3>How to read the compiler reports</h3>
+
+<p>Add to your Gradle file:</p>
+<pre><code>composeCompiler {
+    metricsDestination = layout.buildDirectory.dir(<span class="str">"compose-metrics"</span>)
+    reportsDestination = layout.buildDirectory.dir(<span class="str">"compose-reports"</span>)
+}</code></pre>
+
+<p>After a release build, you get per-module files:</p>
+<table>
+  <thead><tr><th>File</th><th>What it tells you</th></tr></thead>
+  <tbody>
+    <tr><td><code>*-classes.txt</code></td><td>Stability of every class your module touches: <code>stable</code> / <code>unstable</code> / <code>runtime</code> + reasons</td></tr>
+    <tr><td><code>*-composables.txt</code></td><td>Per-Composable: <code>skippable</code>, <code>restartable</code>, <code>readonly</code>, plus stability of each parameter</td></tr>
+    <tr><td><code>*-composables.csv</code></td><td>Same data in CSV — easy to grep for "not skippable"</td></tr>
+    <tr><td><code>*-module.json</code></td><td>Module-level summary statistics</td></tr>
+  </tbody>
+</table>
+
+<p>Goal: <strong>every Composable that takes parameters should be both <code>skippable</code> AND <code>restartable</code></strong>. If a Composable is <code>restartable</code> but NOT <code>skippable</code>, find which parameter is unstable and fix it (per §9 of this guide).</p>
+
+<div class="callout good"><strong>The takeaway:</strong> the Compose Compiler does ~5-10 transformations per <code>@Composable</code>, all aimed at one goal — making the runtime able to skip work. Your job as a developer is to hand the compiler the information it needs (stable types, immutable parameters, hoisted state) so its skip decisions can fire. Hand it bad inputs and skipping silently fails; hand it good inputs and your UI flies.</div>
+
 <!-- =============== 7. SIDE EFFECTS =============== -->
 <h2 id="s7">7. Side effects — picking the right effect API</h2>
 

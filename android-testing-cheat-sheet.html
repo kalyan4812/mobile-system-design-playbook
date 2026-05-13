@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Android Testing Cheat Sheet — Unit · Integration · UI · KMP</title>
+<meta name="description" content="A dense, SDE3-level cheat sheet for Android testing in 2026. Why test, the testing pyramid, latest stack (JUnit 5, Kotest, MockK, Turbine, runTest, MockWebServer, Robolectric, Compose Test, Hilt Test, Paparazzi, Macrobenchmark), sample-project examples for every layer (plain class, UseCase, Repository, ViewModel, Room DAO, Retrofit, Composable, Service, ContentProvider, DataStore), KMP-friendly patterns, fakes vs mocks, common mistakes, and interview Q&A." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 280px minmax(0, 1fr);
+    gap: 28px; max-width: 1300px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+
+  .diagram {
+    background: var(--code-bg); color: #e6edf3;
+    padding: 14px 16px; border-radius: 10px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre; margin: 10px 0 14px;
+    border: 1px solid var(--code-border);
+  }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.92rem;
+  }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, .diagram, table, .callout, .two-col { page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Testing · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Android Testing — Cheat Sheet</h1>
+  <div class="subtitle">Unit · Integration · UI · KMP-friendly · 2026 stack with practical examples for every layer</div>
+  <div class="badges">
+    <span class="badge">Sample project</span>
+    <span class="badge">JUnit 5 · Kotest · MockK · Turbine</span>
+    <span class="badge">Hilt + Compose + Paparazzi</span>
+    <span class="badge">SDE3-ready</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a focused, practical guide to testing Android in 2026. We define a small sample project (a Notes app) and write tests for <em>every</em> layer of it — plain class, UseCase, Repository, ViewModel, Room DAO, Retrofit Api, Composable, Service, ContentProvider, DataStore. Same UI shell as the other cheat sheets in the repo: dark mode, search (⌘K), sticky TOC, copy-code, print-ready PDF. All code is original and uses standard idiomatic patterns.
+</section>
+
+<!-- =============== 1. WHY TEST =============== -->
+<h2 id="s1">1. Why testing? — the problem and the cost of not testing</h2>
+
+<p>Tests aren't optional ceremony. They're the only way to keep a non-trivial codebase changeable without fear. Without tests:</p>
+
+<ul>
+  <li>Every refactor is a roll of the dice — you only find out you broke something when QA or users do</li>
+  <li>Onboarding new devs takes weeks because they're scared to touch anything</li>
+  <li>Bug fix → ship → new bug emerges in seemingly unrelated code (regression)</li>
+  <li>Performance work becomes guesswork instead of data-driven</li>
+</ul>
+
+<h3>The cost-of-bug curve</h3>
+
+<table>
+  <thead><tr><th>Where bug is caught</th><th>Cost to fix</th></tr></thead>
+  <tbody>
+    <tr><td>While writing the code (compiler / IDE)</td><td>~1×</td></tr>
+    <tr><td>During unit tests on local machine</td><td>~5×</td></tr>
+    <tr><td>During CI (PR review)</td><td>~10×</td></tr>
+    <tr><td>During QA / staging</td><td>~50×</td></tr>
+    <tr><td>In production (1-star reviews)</td><td>~500× + reputation cost</td></tr>
+  </tbody>
+</table>
+
+<p>Tests pull bug detection left on this curve. A good test suite turns a 500× incident into a 5× minor commit.</p>
+
+<h3>What good tests give you</h3>
+
+<ul>
+  <li><strong>Confidence to refactor</strong> — change implementation freely; tests verify behavior didn't break</li>
+  <li><strong>Living documentation</strong> — tests show how a class is meant to be used (real usage, not stale comments)</li>
+  <li><strong>Design feedback</strong> — hard-to-test code is usually badly designed code</li>
+  <li><strong>Regression prevention</strong> — every fixed bug becomes a test that prevents it from coming back</li>
+  <li><strong>Faster onboarding</strong> — new devs trust the safety net</li>
+</ul>
+
+<!-- =============== 2. TESTING PYRAMID =============== -->
+<h2 id="s2">2. The testing pyramid — types of tests and when to use which</h2>
+
+<div class="diagram">                       /\
+                      /UI\           ← E2E / instrumented (slow, fragile, expensive)
+                     /----\             ~5% of total tests
+                    / Comp \          ← Compose / Espresso UI tests (mid)
+                   /--------\            ~15% of tests
+                  /Integration\        ← Multi-layer (Repo + DAO, MockWebServer + Api)
+                 /------------\          ~20% of tests
+                /     UNIT     \       ← Pure JVM, fast, in millions, no Android
+               /----------------\        ~60% of tests
+              /                  \</div>
+
+<table>
+  <thead><tr><th>Level</th><th>Speed</th><th>Confidence per test</th><th>What to test there</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Unit</strong></td><td>ms (JVM only)</td><td>One class, one behavior</td><td>UseCases, ViewModels, Repositories, plain classes, reducers, validators</td></tr>
+    <tr><td><strong>Integration</strong></td><td>seconds</td><td>Multi-layer correctness</td><td>Repo + Room (in-memory DB), Api + MockWebServer, ViewModel + real DataStore</td></tr>
+    <tr><td><strong>UI (Compose / Espresso)</strong></td><td>seconds (instrumented)</td><td>Renders correctly + interactions work</td><td>Single-screen flows; key user gestures; accessibility</td></tr>
+    <tr><td><strong>E2E (Maestro / UIAutomator)</strong></td><td>tens of seconds</td><td>Full user journey</td><td>Critical flows only — login, checkout, sign-up</td></tr>
+    <tr><td><strong>Macrobenchmark</strong></td><td>seconds (release build)</td><td>Performance regressions</td><td>Cold start, scrolling, key flows</td></tr>
+    <tr><td><strong>Screenshot</strong></td><td>seconds (JVM via Paparazzi)</td><td>Visual regressions</td><td>Design system components, key screens in different states/themes</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Rule of thumb:</strong> push every test as low on the pyramid as it can go. A bug caught at unit level costs 5×; at UI level costs 50×. Same bug, 10× the cost.</div>
+
+<!-- =============== 3. VOCABULARY =============== -->
+<h2 id="s3">3. Testing vocabulary — fakes, mocks, stubs, spies</h2>
+
+<table>
+  <thead><tr><th>Term</th><th>What it means</th><th>When use</th></tr></thead>
+  <tbody>
+    <tr><td><strong>System under test (SUT)</strong></td><td>The class you're actually testing</td><td>Always the focus</td></tr>
+    <tr><td><strong>Fixture</strong></td><td>The setup data / state shared across tests</td><td>JUnit's <code>@BeforeEach</code></td></tr>
+    <tr><td><strong>Test double</strong></td><td>Umbrella term for any stand-in (fake, mock, stub, spy, dummy)</td><td>Whenever you replace a real dependency</td></tr>
+    <tr><td><strong>Dummy</strong></td><td>Object passed but never used (just to satisfy a parameter)</td><td>Rare; mostly when you only care about other args</td></tr>
+    <tr><td><strong>Stub</strong></td><td>Pre-programmed answers — "if asked, return X"</td><td>When SUT only reads</td></tr>
+    <tr><td><strong>Mock</strong></td><td>Stub + verifies interactions ("was method X called?")</td><td>When SUT's correctness is "did it call this?"</td></tr>
+    <tr><td><strong>Spy</strong></td><td>Real object + records calls (partial mock)</td><td>Rare; testing legacy classes you can't refactor</td></tr>
+    <tr><td><strong>Fake</strong></td><td>Working implementation, simplified for tests (e.g., in-memory DB)</td><td><strong>Default choice for repositories and data sources</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>Fake vs Mock — the most important decision</h3>
+
+<div class="two-col">
+  <div class="col-card good"><strong>Prefer FAKES for repository-like dependencies</strong>
+    <ul>
+      <li>Same interface as real, but uses an in-memory backing</li>
+      <li>Tests look like normal code — easy to read</li>
+      <li>Survives interface refactors (you only update one fake, not 50 mock setups)</li>
+      <li>Catches contract bugs (your fake exhibits same edge cases)</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>Use MOCKS sparingly — only for verification</strong>
+    <ul>
+      <li>Mocks tightly couple tests to implementation details</li>
+      <li>Refactor breaks 50 mock setups even if behavior is identical</li>
+      <li>Use only when "did the SUT call this method?" is the actual property under test (e.g., did Analytics.track fire?)</li>
+    </ul>
+  </div>
+</div>
+
+<pre><code><span class="com">// FAKE — preferred for Repository</span>
+<span class="kw">class</span> FakeNotesRepository : NotesRepository {
+    <span class="kw">private val</span> notes = mutableMapOf&lt;String, Note&gt;()
+    <span class="kw">private val</span> flow = MutableStateFlow&lt;List&lt;Note&gt;&gt;(emptyList())
+    <span class="kw">override fun</span> observe(): Flow&lt;List&lt;Note&gt;&gt; = flow
+    <span class="kw">override suspend fun</span> add(note: Note) { notes[note.id] = note; flow.value = notes.values.toList() }
+    <span class="kw">override suspend fun</span> get(id: String) = notes[id]
+}
+
+<span class="com">// MOCK — only when verifying interaction is the test's purpose</span>
+<span class="kw">val</span> analytics = mockk&lt;Analytics&gt;(relaxed = <span class="kw">true</span>)
+vm.onClick()
+verify { analytics.track(<span class="str">"button_clicked"</span>) }      <span class="com">// the test IS about this call</span></code></pre>
+
+<!-- =============== 4. THE LATEST STACK =============== -->
+<h2 id="s4">4. The latest stack (2026) — what to put in your <code>build.gradle.kts</code></h2>
+
+<table>
+  <thead><tr><th>Purpose</th><th>Library</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Test runner / framework</td><td><strong>JUnit 5 (Jupiter)</strong> for JVM tests, <code>de.mannodermaus.android-junit5</code> Gradle plugin for Android</td><td>Better than JUnit 4: nested tests, parameterized cleaner, dynamic tests, lifecycle hooks more flexible</td></tr>
+    <tr><td>KMP-friendly framework</td><td><strong>Kotest</strong> or <strong>kotlin.test</strong></td><td>Both work in <code>commonTest</code>; Kotest has nicer matchers and BDD-style</td></tr>
+    <tr><td>Mocking</td><td><strong>MockK</strong></td><td>Kotlin-first; supports final classes by default (Mockito needs mockito-inline); supports suspend, top-level functions, object/companion mocking</td></tr>
+    <tr><td>Coroutines testing</td><td><code>kotlinx-coroutines-test</code></td><td>Provides <code>runTest</code>, <code>StandardTestDispatcher</code>, virtual time</td></tr>
+    <tr><td>Flow testing</td><td><strong>Turbine</strong> (cash app)</td><td>Cleanest API for asserting Flow emissions one by one</td></tr>
+    <tr><td>HTTP mocking</td><td><strong>OkHttp MockWebServer</strong></td><td>Real OkHttp client hits a local server you control</td></tr>
+    <tr><td>JVM-side Android API testing</td><td><strong>Robolectric</strong></td><td>Run Android-API code on JVM (no emulator)</td></tr>
+    <tr><td>Compose UI tests</td><td><code>androidx.compose.ui:ui-test-junit4</code> (or junit5 variant)</td><td><code>createComposeRule</code> / <code>createAndroidComposeRule</code></td></tr>
+    <tr><td>Hilt testing</td><td><code>com.google.dagger:hilt-android-testing</code></td><td><code>@HiltAndroidTest</code>, <code>HiltAndroidRule</code>, <code>@TestInstallIn</code></td></tr>
+    <tr><td>Screenshot testing</td><td><strong>Paparazzi</strong> (View) or <strong>Roborazzi</strong> (Compose-friendly)</td><td>JVM-only — no emulator needed</td></tr>
+    <tr><td>Macrobenchmark</td><td><code>androidx.benchmark:benchmark-macro-junit4</code></td><td>Measure cold start, scrolling on release builds</td></tr>
+    <tr><td>End-to-end UI flows</td><td><strong>Maestro</strong> or UI Automator</td><td>Maestro is YAML-based, much simpler than Espresso for E2E</td></tr>
+    <tr><td>Code coverage</td><td><strong>Kover</strong> (Kotlin/KMP) or JaCoCo (JVM-only)</td><td>Kover preferred for KMP modules</td></tr>
+    <tr><td>Truth / assertions</td><td><strong>kotlin.test</strong> (KMP) or <strong>Google Truth</strong></td><td>Avoid Hamcrest in 2026 — verbose</td></tr>
+    <tr><td>Property-based testing (advanced)</td><td><strong>Kotest Property</strong></td><td>Generate hundreds of random inputs; great for parsers, validators</td></tr>
+  </tbody>
+</table>
+
+<h3>Skeleton <code>libs.versions.toml</code> entries</h3>
+<pre><code>[versions]
+junit-jupiter = <span class="str">"5.10.2"</span>
+junit5-android = <span class="str">"1.10.0.0"</span>
+mockk = <span class="str">"1.13.10"</span>
+turbine = <span class="str">"1.1.0"</span>
+coroutines = <span class="str">"1.8.1"</span>
+mockwebserver = <span class="str">"4.12.0"</span>
+robolectric = <span class="str">"4.13"</span>
+compose-bom = <span class="str">"2024.06.00"</span>
+hilt = <span class="str">"2.51.1"</span>
+paparazzi = <span class="str">"1.3.4"</span>
+kotest = <span class="str">"5.9.0"</span>
+
+[libraries]
+junit-jupiter-api    = { module = <span class="str">"org.junit.jupiter:junit-jupiter-api"</span>, version.ref = <span class="str">"junit-jupiter"</span> }
+junit-jupiter-engine = { module = <span class="str">"org.junit.jupiter:junit-jupiter-engine"</span>, version.ref = <span class="str">"junit-jupiter"</span> }
+mockk                = { module = <span class="str">"io.mockk:mockk"</span>, version.ref = <span class="str">"mockk"</span> }
+turbine              = { module = <span class="str">"app.cash.turbine:turbine"</span>, version.ref = <span class="str">"turbine"</span> }
+coroutines-test      = { module = <span class="str">"org.jetbrains.kotlinx:kotlinx-coroutines-test"</span>, version.ref = <span class="str">"coroutines"</span> }
+mockwebserver        = { module = <span class="str">"com.squareup.okhttp3:mockwebserver"</span>, version.ref = <span class="str">"mockwebserver"</span> }
+robolectric          = { module = <span class="str">"org.robolectric:robolectric"</span>, version.ref = <span class="str">"robolectric"</span> }
+hilt-testing         = { module = <span class="str">"com.google.dagger:hilt-android-testing"</span>, version.ref = <span class="str">"hilt"</span> }
+hilt-compiler        = { module = <span class="str">"com.google.dagger:hilt-android-compiler"</span>, version.ref = <span class="str">"hilt"</span> }
+compose-bom          = { module = <span class="str">"androidx.compose:compose-bom"</span>, version.ref = <span class="str">"compose-bom"</span> }
+compose-test-junit4  = { module = <span class="str">"androidx.compose.ui:ui-test-junit4"</span> }
+kotest-runner-jvm    = { module = <span class="str">"io.kotest:kotest-runner-junit5"</span>, version.ref = <span class="str">"kotest"</span> }
+kotest-assertions    = { module = <span class="str">"io.kotest:kotest-assertions-core"</span>, version.ref = <span class="str">"kotest"</span> }</code></pre>
+
+<h3>Test source-set layout</h3>
+<pre><code>src/
+├── main/                    <span class="com">// production code</span>
+├── test/                    <span class="com">// JVM-only tests (fast, run anywhere)</span>
+│   └── kotlin/...
+├── androidTest/             <span class="com">// instrumented tests (need emulator/device)</span>
+│   └── kotlin/...
+└── commonTest/              <span class="com">// (KMP only) shared tests</span>
+    └── kotlin/...</code></pre>
+
+<!-- =============== 5. DESIGN FOR TESTABILITY =============== -->
+<h2 id="s5">5. Designing for testability — the 7 principles</h2>
+
+<ol>
+  <li><strong>Depend on interfaces, not implementations.</strong> ViewModel takes <code>UserRepository</code> (interface), not <code>UserRepositoryImpl</code>. Lets you swap a fake.</li>
+  <li><strong>Inject dependencies through constructor.</strong> No <code>val api = Retrofit.Builder()...build()</code> inside classes — receive what you need.</li>
+  <li><strong>No hidden global state.</strong> Singletons that hold mutable state are test poison. Use Hilt scopes for true singletons; never <code>object Manager { var x }</code>.</li>
+  <li><strong>Inject the dispatcher.</strong> Don't hardcode <code>Dispatchers.IO</code>; receive it. Tests inject <code>StandardTestDispatcher</code> for virtual time.</li>
+  <li><strong>Inject the clock.</strong> Don't call <code>System.currentTimeMillis()</code> directly — wrap in a <code>Clock</code> interface. Tests inject a fixed clock for time-dependent logic.</li>
+  <li><strong>Pure functions wherever possible.</strong> Reducers, validators, formatters — all should be pure. Easiest tests in the world.</li>
+  <li><strong>Avoid static methods, top-level functions with side effects, and singletons that touch the OS.</strong> Wrap them in classes that can be replaced.</li>
+</ol>
+
+<pre><code><span class="com">// Bad — untestable</span>
+<span class="kw">class</span> Repo {
+    <span class="kw">private val</span> api = Retrofit.Builder()...build().create&lt;Api&gt;()    <span class="com">// hidden dep</span>
+    <span class="kw">suspend fun</span> get() = withContext(Dispatchers.IO) { api.fetch() }    <span class="com">// hidden dispatcher</span>
+    <span class="kw">fun</span> isExpired(token: Token) = token.expiresAt &lt; System.currentTimeMillis()  <span class="com">// hidden clock</span>
+}
+
+<span class="com">// Good — testable</span>
+<span class="kw">class</span> Repo @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> api: Api,                       <span class="com">// inject interface</span>
+    <span class="kw">private val</span> ioDispatcher: CoroutineDispatcher, <span class="com">// inject dispatcher</span>
+    <span class="kw">private val</span> clock: Clock                    <span class="com">// inject clock</span>
+) {
+    <span class="kw">suspend fun</span> get() = withContext(ioDispatcher) { api.fetch() }
+    <span class="kw">fun</span> isExpired(token: Token) = token.expiresAt &lt; clock.now()
+}</code></pre>
+
+<!-- =============== 6. SAMPLE PROJECT =============== -->
+<h2 id="s6">6. The sample project — a Notes app we'll test layer by layer</h2>
+
+<p>For the rest of this guide we'll test a small Notes app. Here are the contracts (interfaces); implementations are obvious. Every later section tests one of these layers in isolation.</p>
+
+<pre><code><span class="com">// Domain model</span>
+<span class="kw">data class</span> Note(<span class="kw">val</span> id: String, <span class="kw">val</span> title: String, <span class="kw">val</span> body: String, <span class="kw">val</span> updatedAt: Long)
+
+<span class="com">// Repository interface</span>
+<span class="kw">interface</span> NotesRepository {
+    <span class="kw">fun</span> observeAll(): Flow&lt;List&lt;Note&gt;&gt;
+    <span class="kw">suspend fun</span> get(id: String): Note?
+    <span class="kw">suspend fun</span> save(note: Note)
+    <span class="kw">suspend fun</span> delete(id: String)
+    <span class="kw">suspend fun</span> sync()
+}
+
+<span class="com">// UseCase</span>
+<span class="kw">class</span> SaveNoteUseCase @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: NotesRepository,
+    <span class="kw">private val</span> clock: Clock
+) {
+    <span class="kw">suspend</span> operator <span class="kw">fun</span> invoke(title: String, body: String): Result&lt;Note&gt; {
+        <span class="kw">if</span> (title.isBlank()) <span class="kw">return</span> Result.failure(IllegalArgumentException(<span class="str">"empty title"</span>))
+        <span class="kw">val</span> note = Note(id = UUID.randomUUID().toString(), title = title, body = body, updatedAt = clock.now())
+        repo.save(note)
+        <span class="kw">return</span> Result.success(note)
+    }
+}
+
+<span class="com">// ViewModel</span>
+<span class="anno">@HiltViewModel</span>
+<span class="kw">class</span> NotesViewModel @Inject <span class="kw">constructor</span>(
+    <span class="kw">private val</span> repo: NotesRepository,
+    <span class="kw">private val</span> save: SaveNoteUseCase
+) : ViewModel() {
+    <span class="kw">val</span> notes: StateFlow&lt;List&lt;Note&gt;&gt; = repo.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(<span class="num">5_000</span>), emptyList())
+
+    <span class="kw">private val</span> _events = Channel&lt;UiEvent&gt;(Channel.BUFFERED)
+    <span class="kw">val</span> events: Flow&lt;UiEvent&gt; = _events.receiveAsFlow()
+
+    <span class="kw">fun</span> add(title: String, body: String) = viewModelScope.launch {
+        save(title, body)
+            .onSuccess { _events.send(UiEvent.Saved) }
+            .onFailure { _events.send(UiEvent.Error(it.message ?: <span class="str">"unknown"</span>)) }
+    }
+
+    <span class="kw">sealed interface</span> UiEvent {
+        <span class="kw">data object</span> Saved : UiEvent
+        <span class="kw">data class</span> Error(<span class="kw">val</span> msg: String) : UiEvent
+    }
+}
+
+<span class="com">// Composable</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> NotesScreen(vm: NotesViewModel = hiltViewModel()) {
+    <span class="kw">val</span> notes <span class="kw">by</span> vm.notes.collectAsStateWithLifecycle()
+    Column {
+        notes.forEach { Text(it.title, Modifier.testTag(<span class="str">"note_${it.id}"</span>)) }
+        Button(onClick = { vm.add(<span class="str">"New"</span>, <span class="str">"Body"</span>) },
+               modifier = Modifier.testTag(<span class="str">"add_btn"</span>)) { Text(<span class="str">"Add"</span>) }
+    }
+}</code></pre>
+
+<!-- =============== 7. PLAIN CLASS =============== -->
+<h2 id="s7">7. Test: plain Kotlin class</h2>
+
+<p>The simplest possible test. Pure logic, no dependencies, no Android. Use this every time you have a function that should be a pure function — extracted from somewhere bigger.</p>
+
+<pre><code><span class="com">// Production class</span>
+<span class="kw">class</span> EmailValidator {
+    <span class="kw">fun</span> isValid(email: String): Boolean =
+        email.matches(Regex(<span class="str">"^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"</span>))
+}
+
+<span class="com">// JUnit 5 test</span>
+<span class="kw">class</span> EmailValidatorTest {
+    <span class="kw">private val</span> validator = EmailValidator()
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `accepts standard email`() {
+        assertTrue(validator.isValid(<span class="str">"sai@example.com"</span>))
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `rejects email without @`() {
+        assertFalse(validator.isValid(<span class="str">"saiexample.com"</span>))
+    }
+
+    <span class="anno">@ParameterizedTest</span>
+    <span class="anno">@ValueSource</span>(strings = [<span class="str">""</span>, <span class="str">"a@b"</span>, <span class="str">"@example.com"</span>, <span class="str">"a@.com"</span>])
+    <span class="kw">fun</span> `rejects invalid emails`(email: String) {
+        assertFalse(validator.isValid(email))
+    }
+}</code></pre>
+
+<p><strong>Best practices:</strong></p>
+<ul>
+  <li>Use backticked function names — they read like sentences in test reports</li>
+  <li>One behavior per test (Arrange / Act / Assert pattern)</li>
+  <li>Use parameterized tests for "same logic, multiple inputs" — keeps test count up while code stays compact</li>
+  <li>Don't test private methods; test through public methods. If a private method is too complex to test that way, extract it into its own class with public methods</li>
+</ul>
+
+<!-- =============== 8. USECASE =============== -->
+<h2 id="s8">8. Test: UseCase (pure logic with injected deps)</h2>
+
+<p>UseCases are mostly orchestration: validate input, call the repo, format output. Inject everything; assert on Result.</p>
+
+<pre><code><span class="kw">class</span> SaveNoteUseCaseTest {
+    <span class="kw">private val</span> fakeRepo = FakeNotesRepository()
+    <span class="kw">private val</span> fixedClock = <span class="kw">object</span> : Clock { <span class="kw">override fun</span> now() = <span class="num">1_700_000_000_000L</span> }
+    <span class="kw">private val</span> useCase = SaveNoteUseCase(fakeRepo, fixedClock)
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `saves note when title valid`() = runTest {
+        <span class="kw">val</span> result = useCase(<span class="str">"Title"</span>, <span class="str">"Body"</span>)
+        assertTrue(result.isSuccess)
+        <span class="kw">val</span> note = result.getOrThrow()
+        assertEquals(<span class="str">"Title"</span>, note.title)
+        assertEquals(<span class="num">1_700_000_000_000L</span>, note.updatedAt)
+        assertEquals(<span class="num">1</span>, fakeRepo.allSnapshot().size)
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `fails when title blank`() = runTest {
+        <span class="kw">val</span> result = useCase(<span class="str">""</span>, <span class="str">"body"</span>)
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() <span class="kw">is</span> IllegalArgumentException)
+        assertEquals(<span class="num">0</span>, fakeRepo.allSnapshot().size)
+    }
+}
+
+<span class="com">// FakeNotesRepository</span>
+<span class="kw">class</span> FakeNotesRepository : NotesRepository {
+    <span class="kw">private val</span> store = mutableMapOf&lt;String, Note&gt;()
+    <span class="kw">private val</span> flow = MutableStateFlow&lt;List&lt;Note&gt;&gt;(emptyList())
+
+    <span class="kw">override fun</span> observeAll(): Flow&lt;List&lt;Note&gt;&gt; = flow
+    <span class="kw">override suspend fun</span> get(id: String) = store[id]
+    <span class="kw">override suspend fun</span> save(note: Note) { store[note.id] = note; flow.value = store.values.toList() }
+    <span class="kw">override suspend fun</span> delete(id: String) { store.remove(id); flow.value = store.values.toList() }
+    <span class="kw">override suspend fun</span> sync() { <span class="com">/* no-op for tests */</span> }
+
+    <span class="com">// Test-only helpers</span>
+    <span class="kw">fun</span> allSnapshot(): List&lt;Note&gt; = store.values.toList()
+    <span class="kw">fun</span> seed(notes: List&lt;Note&gt;) { notes.forEach { store[it.id] = it }; flow.value = store.values.toList() }
+}</code></pre>
+
+<!-- =============== 9. REPOSITORY =============== -->
+<h2 id="s9">9. Test: Repository (with fake DAO + fake Api)</h2>
+
+<p>Repositories orchestrate data sources. Test "given network returns X, repo emits Y" — without spinning up Room or OkHttp.</p>
+
+<pre><code><span class="kw">class</span> NotesRepositoryImplTest {
+    <span class="kw">private val</span> fakeDao = FakeNotesDao()
+    <span class="kw">private val</span> fakeApi = FakeNotesApi()
+    <span class="kw">private val</span> repo = NotesRepositoryImpl(fakeDao, fakeApi)
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `sync writes remote results to DAO`() = runTest {
+        fakeApi.notesToReturn = listOf(Note(<span class="str">"1"</span>, <span class="str">"a"</span>, <span class="str">""</span>, <span class="num">0</span>), Note(<span class="str">"2"</span>, <span class="str">"b"</span>, <span class="str">""</span>, <span class="num">0</span>))
+        repo.sync()
+        assertEquals(<span class="num">2</span>, fakeDao.allSnapshot().size)
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `observeAll emits from DAO`() = runTest {
+        fakeDao.seed(listOf(Note(<span class="str">"x"</span>, <span class="str">"x"</span>, <span class="str">""</span>, <span class="num">0</span>)))
+        repo.observeAll().test {
+            assertEquals(<span class="num">1</span>, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `save persists locally and queues remote sync`() = runTest {
+        <span class="kw">val</span> note = Note(<span class="str">"1"</span>, <span class="str">"t"</span>, <span class="str">"b"</span>, <span class="num">0</span>)
+        repo.save(note)
+        assertTrue(fakeDao.allSnapshot().contains(note))
+        assertTrue(fakeApi.savedNotes.contains(note))
+    }
+}
+
+<span class="kw">class</span> FakeNotesDao : NotesDao {
+    <span class="kw">private val</span> store = mutableMapOf&lt;String, Note&gt;()
+    <span class="kw">private val</span> flow = MutableStateFlow&lt;List&lt;Note&gt;&gt;(emptyList())
+    <span class="kw">override fun</span> observeAll() = flow
+    <span class="kw">override suspend fun</span> upsert(note: Note) { store[note.id] = note; flow.value = store.values.toList() }
+    <span class="kw">override suspend fun</span> get(id: String) = store[id]
+    <span class="kw">override suspend fun</span> delete(id: String) { store.remove(id); flow.value = store.values.toList() }
+    <span class="kw">fun</span> allSnapshot() = store.values.toList()
+    <span class="kw">fun</span> seed(notes: List&lt;Note&gt;) { notes.forEach { store[it.id] = it }; flow.value = store.values.toList() }
+}
+
+<span class="kw">class</span> FakeNotesApi : NotesApi {
+    <span class="kw">var</span> notesToReturn: List&lt;Note&gt; = emptyList()
+    <span class="kw">val</span> savedNotes = mutableListOf&lt;Note&gt;()
+    <span class="kw">override suspend fun</span> fetchAll() = notesToReturn
+    <span class="kw">override suspend fun</span> push(note: Note) { savedNotes += note }
+}</code></pre>
+
+<!-- =============== 10. VIEWMODEL =============== -->
+<h2 id="s10">10. Test: ViewModel (Coroutines + StateFlow + SharedFlow events)</h2>
+
+<p>The most-tested layer in a typical project. Three things to verify: state evolves correctly, events fire correctly, no leaks.</p>
+
+<pre><code><span class="anno">@OptIn(ExperimentalCoroutinesApi::class)</span>
+<span class="kw">class</span> NotesViewModelTest {
+
+    <span class="kw">private val</span> dispatcher = StandardTestDispatcher()
+    <span class="kw">private val</span> fakeRepo = FakeNotesRepository()
+    <span class="kw">private val</span> useCase = SaveNoteUseCase(fakeRepo, FixedClock(<span class="num">100L</span>))
+    <span class="kw">private lateinit var</span> vm: NotesViewModel
+
+    <span class="anno">@BeforeEach</span>
+    <span class="kw">fun</span> setUp() {
+        Dispatchers.setMain(dispatcher)        <span class="com">// viewModelScope uses Main</span>
+        vm = NotesViewModel(fakeRepo, useCase)
+    }
+
+    <span class="anno">@AfterEach</span>
+    <span class="kw">fun</span> tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `notes state mirrors repository`() = runTest(dispatcher) {
+        vm.notes.test {
+            assertEquals(emptyList&lt;Note&gt;(), awaitItem())               <span class="com">// initial</span>
+            fakeRepo.seed(listOf(Note(<span class="str">"1"</span>, <span class="str">"a"</span>, <span class="str">""</span>, <span class="num">0</span>)))
+            assertEquals(<span class="num">1</span>, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `add success emits Saved event and persists`() = runTest(dispatcher) {
+        vm.events.test {
+            vm.add(<span class="str">"Title"</span>, <span class="str">"Body"</span>)
+            advanceUntilIdle()                                          <span class="com">// drain pending coroutines</span>
+            assertEquals(NotesViewModel.UiEvent.Saved, awaitItem())
+        }
+        assertEquals(<span class="num">1</span>, fakeRepo.allSnapshot().size)
+    }
+
+    <span class="anno">@Test</span>
+    <span class="kw">fun</span> `add empty title emits Error event`() = runTest(dispatcher) {
+        vm.events.test {
+            vm.add(<span class="str">""</span>, <span class="str">"body"</span>)
+            advanceUntilIdle()
+            <span class="kw">val</span> evt = awaitItem()
+            assertTrue(evt <span class="kw">is</span> NotesViewModel.UiEvent.Error)
+        }
+        assertEquals(<span class="num">0</span>, fakeRepo.allSnapshot().size)
+    }
+}</code></pre>
+
+<div class="callout">
+<strong>Three patterns to memorize:</strong>
+<ul>
+  <li><code>Dispatchers.setMain(dispatcher)</code> in setUp + <code>resetMain()</code> in tearDown — required because <code>viewModelScope</code> uses <code>Dispatchers.Main</code> which is unavailable in JVM tests by default.</li>
+  <li><code>runTest(dispatcher)</code> + <code>advanceUntilIdle()</code> — drives coroutines deterministically.</li>
+  <li><code>flow.test { awaitItem() }</code> — Turbine; the cleanest way to assert Flow emissions.</li>
+</ul>
+</div>
+
+<!-- =============== 11. ROOM DAO =============== -->
+<h2 id="s11">11. Test: Room DAO (in-memory database, fast)</h2>
+
+<p>Room DAO tests need a real Room — the generated implementations are non-trivial. Use an <strong>in-memory database</strong> in <code>androidTest/</code>. With Robolectric you can also run Room on the JVM for some scenarios, but instrumented in-memory is the canonical approach.</p>
+
+<pre><code><span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> NotesDaoTest {
+    <span class="kw">private lateinit var</span> db: AppDatabase
+    <span class="kw">private lateinit var</span> dao: NotesDao
+
+    <span class="anno">@Before</span>
+    <span class="kw">fun</span> setUp() {
+        <span class="kw">val</span> ctx = ApplicationProvider.getApplicationContext&lt;Context&gt;()
+        db = Room.inMemoryDatabaseBuilder(ctx, AppDatabase::<span class="kw">class</span>.java)
+            .allowMainThreadQueries()
+            .build()
+        dao = db.notesDao()
+    }
+
+    <span class="anno">@After fun</span> tearDown() = db.close()
+
+    <span class="anno">@Test fun</span> insertAndGet() = runTest {
+        <span class="kw">val</span> note = Note(<span class="str">"1"</span>, <span class="str">"t"</span>, <span class="str">"b"</span>, <span class="num">100</span>)
+        dao.upsert(note)
+        assertEquals(note, dao.get(<span class="str">"1"</span>))
+    }
+
+    <span class="anno">@Test fun</span> observeAllEmitsOnInsert() = runTest {
+        dao.observeAll().test {
+            assertEquals(emptyList&lt;Note&gt;(), awaitItem())
+            dao.upsert(Note(<span class="str">"1"</span>, <span class="str">"t"</span>, <span class="str">""</span>, <span class="num">0</span>))
+            assertEquals(<span class="num">1</span>, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+}</code></pre>
+
+<p><strong>Migration tests</strong> use <code>MigrationTestHelper</code> — critical because broken migrations crash users on update.</p>
+
+<pre><code><span class="kw">class</span> MigrationTest {
+    <span class="anno">@get:Rule val</span> helper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        AppDatabase::<span class="kw">class</span>.java
+    )
+
+    <span class="anno">@Test fun</span> migrate1to2() {
+        <span class="kw">val</span> db = helper.createDatabase(<span class="str">"test.db"</span>, <span class="num">1</span>).apply {
+            execSQL(<span class="str">"INSERT INTO Note VALUES('x', 't', 'b', 100)"</span>)
+            close()
+        }
+        helper.runMigrationsAndValidate(<span class="str">"test.db"</span>, <span class="num">2</span>, <span class="kw">true</span>, MIGRATION_1_2)
+        <span class="com">// Open with v2 schema and assert data still present + new column populated</span>
+    }
+}</code></pre>
+
+<!-- =============== 12. RETROFIT =============== -->
+<h2 id="s12">12. Test: Retrofit Api (MockWebServer)</h2>
+
+<p>Don't mock Retrofit. Use a real OkHttp client pointed at a local <code>MockWebServer</code> — same code path as production.</p>
+
+<pre><code><span class="kw">class</span> NotesApiTest {
+    <span class="kw">private lateinit var</span> server: MockWebServer
+    <span class="kw">private lateinit var</span> api: NotesApi
+
+    <span class="anno">@BeforeEach fun</span> setUp() {
+        server = MockWebServer().apply { start() }
+        api = Retrofit.Builder()
+            .baseUrl(server.url(<span class="str">"/"</span>))
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+            .create(NotesApi::<span class="kw">class</span>.java)
+    }
+
+    <span class="anno">@AfterEach fun</span> tearDown() = server.shutdown()
+
+    <span class="anno">@Test fun</span> `fetchAll parses successful response`() = runTest {
+        server.enqueue(MockResponse().setBody(<span class="str">"""
+            [{"id":"1","title":"Hello","body":"World","updatedAt":100}]
+        """</span>.trimIndent()))
+
+        <span class="kw">val</span> notes = api.fetchAll()
+        assertEquals(<span class="num">1</span>, notes.size)
+        assertEquals(<span class="str">"Hello"</span>, notes.first().title)
+
+        <span class="kw">val</span> recorded = server.takeRequest()
+        assertEquals(<span class="str">"GET"</span>, recorded.method)
+        assertEquals(<span class="str">"/notes"</span>, recorded.path)
+    }
+
+    <span class="anno">@Test fun</span> `fetchAll throws HttpException on 500`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(<span class="num">500</span>))
+        assertThrows&lt;HttpException&gt; { api.fetchAll() }
+    }
+}</code></pre>
+
+<!-- =============== 13. COMPOSABLE =============== -->
+<h2 id="s13">13. Test: Composable (createComposeRule)</h2>
+
+<p>Compose UI tests are fast (no view inflation), instrumented, and very expressive. Use <code>testTag</code> for stable selectors.</p>
+
+<pre><code><span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> NotesScreenTest {
+
+    <span class="anno">@get:Rule val</span> compose = createComposeRule()
+
+    <span class="anno">@Test fun</span> `clicking add invokes callback`() {
+        <span class="kw">var</span> addCalled = <span class="kw">false</span>
+        compose.setContent {
+            NotesScreen(
+                state = NotesScreenState(notes = emptyList()),
+                onAdd = { addCalled = <span class="kw">true</span> }
+            )
+        }
+        compose.onNodeWithTag(<span class="str">"add_btn"</span>).performClick()
+        assertTrue(addCalled)
+    }
+
+    <span class="anno">@Test fun</span> `renders all notes`() {
+        compose.setContent {
+            NotesScreen(
+                state = NotesScreenState(notes = listOf(
+                    Note(<span class="str">"1"</span>, <span class="str">"First"</span>, <span class="str">""</span>, <span class="num">0</span>),
+                    Note(<span class="str">"2"</span>, <span class="str">"Second"</span>, <span class="str">""</span>, <span class="num">0</span>)
+                )),
+                onAdd = {}
+            )
+        }
+        compose.onNodeWithText(<span class="str">"First"</span>).assertIsDisplayed()
+        compose.onNodeWithText(<span class="str">"Second"</span>).assertIsDisplayed()
+        compose.onAllNodesWithTag(<span class="str">"note_"</span>, useUnmergedTree = <span class="kw">true</span>).assertCountEquals(<span class="num">2</span>)
+    }
+}</code></pre>
+
+<p><strong>Pattern:</strong> hoist state out of the Composable so tests pass static state directly. The above <code>NotesScreen(state, onAdd)</code> is a stateless variant; the full <code>NotesScreen()</code> with ViewModel calls into this stateless one. This separation makes UI tests trivial.</p>
+
+<p>Key APIs:</p>
+<ul>
+  <li><code>onNodeWithText("X")</code> / <code>onNodeWithTag("tag")</code> / <code>onNodeWithContentDescription("desc")</code></li>
+  <li><code>performClick()</code> / <code>performTextInput("...")</code> / <code>performScrollTo()</code></li>
+  <li><code>assertIsDisplayed()</code> / <code>assertIsEnabled()</code> / <code>assertTextEquals("...")</code></li>
+  <li><code>compose.waitForIdle()</code> — wait for animations / async work</li>
+  <li><code>compose.mainClock.autoAdvance = false; advanceTimeBy(ms)</code> — control time for animation tests</li>
+</ul>
+
+<!-- =============== 14. SERVICE =============== -->
+<h2 id="s14">14. Test: Service / ForegroundService</h2>
+
+<p>Services have a real lifecycle. Two approaches:</p>
+
+<table>
+  <thead><tr><th>Approach</th><th>When use</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Refactor logic out of the Service</strong> into a plain class</td><td><strong>Default approach.</strong> The Service becomes a thin shell; logic gets unit-tested separately.</td></tr>
+    <tr><td><strong>Robolectric <code>ServiceController</code></strong></td><td>JVM tests for Service lifecycle on Android API surface</td></tr>
+    <tr><td><strong>Instrumented tests with <code>ServiceTestRule</code></strong></td><td>Bound services or when you need real Android runtime</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Production — service is thin, business logic extracted</span>
+<span class="kw">class</span> SyncService : Service() {
+    <span class="kw">@Inject lateinit var</span> syncEngine: SyncEngine        <span class="com">// the testable thing</span>
+    <span class="kw">override fun</span> onStartCommand(i: Intent?, flags: Int, id: Int): Int {
+        scope.launch { syncEngine.sync() }
+        <span class="kw">return</span> START_STICKY
+    }
+}
+
+<span class="com">// Unit-test SyncEngine — no Service involved</span>
+<span class="kw">class</span> SyncEngineTest {
+    <span class="anno">@Test fun</span> sync_uploads_pending_items() = runTest {
+        <span class="kw">val</span> engine = SyncEngine(fakeRepo, fakeApi)
+        fakeRepo.queueLocalChanges(listOf(...))
+        engine.sync()
+        assertTrue(fakeApi.uploadedItems.size == <span class="num">3</span>)
+    }
+}</code></pre>
+
+<p><strong>For a ForegroundService notification check, prefer a Robolectric test:</strong></p>
+
+<pre><code><span class="anno">@RunWith(RobolectricTestRunner::class)</span>
+<span class="kw">class</span> SyncServiceTest {
+    <span class="anno">@Test fun</span> `posts foreground notification on start`() {
+        <span class="kw">val</span> service = Robolectric.buildService(SyncService::<span class="kw">class</span>.java)
+            .create()
+            .startCommand(<span class="num">0</span>, <span class="num">0</span>)
+            .get()
+        <span class="kw">val</span> notif = ShadowNotificationManager().activeNotifications.firstOrNull()
+        assertNotNull(notif)
+    }
+}</code></pre>
+
+<!-- =============== 15. CONTENT PROVIDER =============== -->
+<h2 id="s15">15. Test: ContentProvider</h2>
+
+<p>Use the <code>ProviderTestRule</code> in instrumented tests. It sets up an isolated MockContentResolver pointing at your provider — no real provider registration needed.</p>
+
+<pre><code><span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> NotesProviderTest {
+    <span class="anno">@get:Rule val</span> providerRule = ProviderTestRule.Builder(
+        NotesProvider::<span class="kw">class</span>.java,
+        <span class="str">"com.example.notes.provider"</span>
+    ).build()
+
+    <span class="anno">@Test fun</span> `insert and query round-trip`() {
+        <span class="kw">val</span> resolver = providerRule.resolver
+        <span class="kw">val</span> uri = Uri.parse(<span class="str">"content://com.example.notes.provider/notes"</span>)
+        <span class="kw">val</span> values = ContentValues().apply {
+            put(<span class="str">"id"</span>, <span class="str">"1"</span>); put(<span class="str">"title"</span>, <span class="str">"t"</span>); put(<span class="str">"body"</span>, <span class="str">"b"</span>)
+        }
+        <span class="kw">val</span> inserted = resolver.insert(uri, values)
+        assertNotNull(inserted)
+
+        resolver.query(uri, <span class="kw">null</span>, <span class="kw">null</span>, <span class="kw">null</span>, <span class="kw">null</span>)?.use { c -&gt;
+            assertTrue(c.moveToFirst())
+            assertEquals(<span class="str">"t"</span>, c.getString(c.getColumnIndexOrThrow(<span class="str">"title"</span>)))
+        }
+    }
+}</code></pre>
+
+<p><strong>Better pattern:</strong> wrap your ContentProvider behind a Repository / DataSource interface. Then your application code talks to the interface, and you can test with a fake — same pattern as Retrofit / Room.</p>
+
+<!-- =============== 16. SHARED PREFS / DATASTORE =============== -->
+<h2 id="s16">16. Test: SharedPreferences / DataStore</h2>
+
+<p>For new code, use DataStore (preferred). Both can be tested cleanly.</p>
+
+<h3>SharedPreferences (legacy)</h3>
+<pre><code><span class="anno">@RunWith(RobolectricTestRunner::class)</span>
+<span class="kw">class</span> SettingsRepositorySharedPrefsTest {
+    <span class="kw">private lateinit var</span> ctx: Context
+    <span class="kw">private lateinit var</span> repo: SettingsRepository
+
+    <span class="anno">@Before fun</span> setUp() {
+        ctx = ApplicationProvider.getApplicationContext()
+        repo = SettingsRepository(ctx.getSharedPreferences(<span class="str">"test"</span>, Context.MODE_PRIVATE))
+    }
+
+    <span class="anno">@Test fun</span> `theme persists across reads`() {
+        repo.setTheme(<span class="str">"dark"</span>)
+        assertEquals(<span class="str">"dark"</span>, repo.theme())
+    }
+}</code></pre>
+
+<h3>DataStore (preferred)</h3>
+<pre><code><span class="kw">class</span> SettingsDataStoreTest {
+    <span class="anno">@TempDir lateinit var</span> tempDir: File
+    <span class="kw">private lateinit var</span> dataStore: DataStore&lt;Preferences&gt;
+    <span class="kw">private lateinit var</span> repo: SettingsRepository
+
+    <span class="anno">@BeforeEach fun</span> setUp() {
+        dataStore = PreferenceDataStoreFactory.create(
+            scope = TestScope(),
+            produceFile = { File(tempDir, <span class="str">"settings.preferences_pb"</span>) }
+        )
+        repo = SettingsRepository(dataStore)
+    }
+
+    <span class="anno">@Test fun</span> `theme write then read`() = runTest {
+        repo.setTheme(<span class="str">"dark"</span>)
+        assertEquals(<span class="str">"dark"</span>, repo.themeFlow().first())
+    }
+}</code></pre>
+
+<p><strong>Key trick:</strong> create the DataStore with a <strong>temporary directory</strong> so each test has fresh state and there's no file conflict between tests running in parallel.</p>
+
+<!-- =============== 17. HILT =============== -->
+<h2 id="s17">17. Test with Hilt — full integration tests</h2>
+
+<p>For integration tests where you want the real DI graph (e.g., "does my app actually wire together?"), use Hilt's testing artifacts.</p>
+
+<pre><code><span class="com">// 1. Replace the production module with a test module</span>
+<span class="anno">@TestInstallIn(components = [SingletonComponent::class], replaces = [DataModule::class])</span>
+<span class="anno">@Module</span>
+<span class="kw">object</span> FakeDataModule {
+    <span class="anno">@Provides @Singleton</span>
+    <span class="kw">fun</span> provideRepo(): NotesRepository = FakeNotesRepository()
+}
+
+<span class="com">// 2. Use a Hilt-aware test runner</span>
+<span class="anno">@CustomTestApplication(BaseApp::class)</span>
+<span class="kw">interface</span> HiltTestApplication                <span class="com">// Generates HiltTestApplication_Application</span>
+
+<span class="kw">class</span> HiltTestRunner : AndroidJUnitRunner() {
+    <span class="kw">override fun</span> newApplication(cl: ClassLoader?, name: String?, ctx: Context?): Application {
+        <span class="kw">return super</span>.newApplication(cl, HiltTestApplication_Application::<span class="kw">class</span>.java.name, ctx)
+    }
+}
+<span class="com">// build.gradle.kts: testInstrumentationRunner = "com.example.HiltTestRunner"</span>
+
+<span class="com">// 3. Write the test</span>
+<span class="anno">@HiltAndroidTest</span>
+<span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> NotesScreenIntegrationTest {
+    <span class="anno">@get:Rule(order = 0) val</span> hilt = HiltAndroidRule(<span class="kw">this</span>)
+    <span class="anno">@get:Rule(order = 1) val</span> compose = createAndroidComposeRule&lt;HiltTestActivity&gt;()
+
+    <span class="anno">@Inject lateinit var</span> repo: NotesRepository                  <span class="com">// auto-injected = FakeNotesRepository</span>
+
+    <span class="anno">@Before fun</span> init() { hilt.inject() }
+
+    <span class="anno">@Test fun</span> `screen shows notes from repo`() {
+        runBlocking { (repo <span class="kw">as</span> FakeNotesRepository).seed(listOf(Note(<span class="str">"1"</span>, <span class="str">"Hello"</span>, <span class="str">""</span>, <span class="num">0</span>))) }
+        compose.setContent { NotesScreen() }
+        compose.onNodeWithText(<span class="str">"Hello"</span>).assertIsDisplayed()
+    }
+}</code></pre>
+
+<!-- =============== 18. KMP =============== -->
+<h2 id="s18">18. KMP-friendly testing — write tests in <code>commonTest</code></h2>
+
+<p>For Kotlin Multiplatform modules, prefer test code in <code>commonTest</code> so the same tests run on Android, iOS, JVM, and JS.</p>
+
+<table>
+  <thead><tr><th>Feature</th><th>KMP-friendly choice</th><th>Avoid</th></tr></thead>
+  <tbody>
+    <tr><td>Test framework</td><td>Kotest (<code>FunSpec</code>, <code>BehaviorSpec</code>) or <code>kotlin.test</code></td><td>JUnit 5 in commonTest (JVM-only)</td></tr>
+    <tr><td>Mocking</td><td>Hand-written fakes / Mockative</td><td>MockK (JVM-only without extras)</td></tr>
+    <tr><td>Coroutines</td><td><code>kotlinx-coroutines-test</code> (KMP)</td><td>—</td></tr>
+    <tr><td>Flow assertion</td><td>Turbine (KMP since 1.0)</td><td>—</td></tr>
+    <tr><td>Network mocking</td><td>Ktor MockEngine</td><td>MockWebServer (JVM-only)</td></tr>
+    <tr><td>DB</td><td>SQLDelight test driver</td><td>Room (Android-only until 2.7)</td></tr>
+    <tr><td>Time</td><td><code>Clock</code> interface, inject in tests</td><td><code>System.currentTimeMillis</code></td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// commonTest/kotlin/UserUseCaseTest.kt — runs on Android, iOS, JVM, JS</span>
+<span class="kw">class</span> UserUseCaseTest : FunSpec({
+    test(<span class="str">"returns user when id valid"</span>) {
+        <span class="kw">val</span> repo = FakeUserRepository().apply { seed(User(<span class="str">"1"</span>, <span class="str">"Sai"</span>)) }
+        <span class="kw">val</span> useCase = GetUserUseCase(repo)
+        <span class="kw">val</span> result = useCase(<span class="str">"1"</span>)
+        result.shouldBe(User(<span class="str">"1"</span>, <span class="str">"Sai"</span>))
+    }
+})</code></pre>
+
+<!-- =============== 19. COROUTINES + FLOW =============== -->
+<h2 id="s19">19. Coroutines &amp; Flow testing — deep dive</h2>
+
+<h3>The 3 helpers you'll use everywhere</h3>
+<table>
+  <thead><tr><th>Helper</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>runTest { }</code></td><td>Run suspending test code with virtual time. Replaces <code>runBlocking</code> in tests.</td></tr>
+    <tr><td><code>StandardTestDispatcher</code></td><td>Doesn't auto-run coroutines; you call <code>runCurrent()</code> / <code>advanceTimeBy(ms)</code> / <code>advanceUntilIdle()</code>. Use when timing matters.</td></tr>
+    <tr><td><code>UnconfinedTestDispatcher</code></td><td>Auto-runs each coroutine eagerly until first suspension. Easier but less precise.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="anno">@Test fun</span> `debounce + flatMapLatest cancels prior request`() = runTest {
+    <span class="kw">val</span> queries = MutableSharedFlow&lt;String&gt;(replay = <span class="num">0</span>)
+    <span class="kw">val</span> calls = mutableListOf&lt;String&gt;()
+
+    <span class="kw">val</span> job = launch {
+        queries
+            .debounce(<span class="num">300</span>)
+            .flatMapLatest { q -&gt; flow { calls += q; emit(<span class="str">"result $q"</span>) } }
+            .collect()
+    }
+
+    queries.emit(<span class="str">"a"</span>)
+    advanceTimeBy(<span class="num">100</span>)                    <span class="com">// not yet past debounce</span>
+    queries.emit(<span class="str">"ab"</span>)                    <span class="com">// resets debounce timer</span>
+    advanceTimeBy(<span class="num">300</span>)                    <span class="com">// past debounce since last emit</span>
+    runCurrent()
+
+    assertEquals(listOf(<span class="str">"ab"</span>), calls)     <span class="com">// only the latest reached the producer</span>
+    job.cancel()
+}</code></pre>
+
+<h3>Turbine for Flow assertions</h3>
+<pre><code>flow.test {
+    assertEquals(<span class="num">1</span>, awaitItem())
+    assertEquals(<span class="num">2</span>, awaitItem())
+    awaitComplete()                              <span class="com">// or cancelAndIgnoreRemainingEvents()</span>
+}
+
+<span class="com">// Wait with timeout</span>
+flow.test(timeout = <span class="num">2.seconds</span>) {
+    expectMostRecentItem()                       <span class="com">// drains buffered items, returns latest</span>
+}</code></pre>
+
+<!-- =============== 20. SCREENSHOT =============== -->
+<h2 id="s20">20. Screenshot testing — Paparazzi (View) and Roborazzi (Compose)</h2>
+
+<p>Render UI to PNG without an emulator and diff against a "golden" image. Catches design regressions instantly. Cheap to run on CI.</p>
+
+<pre><code><span class="com">// Paparazzi (Compose-friendly via the snapshot lambda)</span>
+<span class="kw">class</span> NotesScreenScreenshotTest {
+    <span class="anno">@get:Rule val</span> paparazzi = Paparazzi(deviceConfig = PIXEL_5)
+
+    <span class="anno">@Test fun</span> notes_empty() {
+        paparazzi.snapshot {
+            NotesScreen(state = NotesScreenState(notes = emptyList()), onAdd = {})
+        }
+    }
+
+    <span class="anno">@Test fun</span> notes_populated() {
+        paparazzi.snapshot {
+            NotesScreen(
+                state = NotesScreenState(notes = sampleNotes()),
+                onAdd = {}
+            )
+        }
+    }
+
+    <span class="anno">@Test fun</span> notes_dark_theme() {
+        paparazzi.snapshot {
+            AppTheme(darkTheme = <span class="kw">true</span>) {
+                NotesScreen(state = NotesScreenState(notes = sampleNotes()), onAdd = {})
+            }
+        }
+    }
+}</code></pre>
+
+<p><strong>Workflow:</strong> first run captures golden images (commit them to git). Future CI runs re-render and diff. Diffs show as a generated HTML report.</p>
+
+<p><strong>Roborazzi</strong> uses Robolectric so it's fully Compose-aware (some Compose features that Paparazzi struggles with work in Roborazzi). Pick whichever your team prefers — both run on JVM only.</p>
+
+<!-- =============== 21. E2E =============== -->
+<h2 id="s21">21. End-to-end testing — Maestro &amp; UI Automator</h2>
+
+<p>For full-flow tests (login → checkout → confirmation), Compose tests are too tightly coupled to one screen. Use:</p>
+
+<table>
+  <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Maestro</strong></td><td>YAML-based E2E flow automation. Far simpler than Espresso for E2E. Hot-reload, video recordings.</td></tr>
+    <tr><td><strong>UI Automator</strong></td><td>Cross-app testing (e.g., your app + system settings). Lower-level than Maestro.</td></tr>
+    <tr><td><strong>Espresso</strong></td><td>Use for mid-complexity in-app flows when you don't want Maestro setup. Compose Test now covers most use cases.</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com"># sample-flow.yaml (Maestro)</span>
+appId: com.example.notes
+---
+- launchApp
+- tapOn: <span class="str">"Add"</span>
+- inputText: <span class="str">"My note"</span>
+- tapOn: <span class="str">"Save"</span>
+- assertVisible: <span class="str">"My note"</span></code></pre>
+
+<p>Run with <code>maestro test sample-flow.yaml</code>. Add to CI for critical flows only — keep the count tiny.</p>
+
+<!-- =============== 22. MACROBENCHMARK =============== -->
+<h2 id="s22">22. Macrobenchmark — measuring performance</h2>
+
+<p>For perf regressions (cold start, scroll jank, key-flow timing), use Macrobenchmark — runs against a release build on a real device.</p>
+
+<pre><code><span class="anno">@RunWith(AndroidJUnit4::class)</span>
+<span class="kw">class</span> StartupBenchmark {
+    <span class="anno">@get:Rule val</span> rule = MacrobenchmarkRule()
+
+    <span class="anno">@Test fun</span> coldStartup() = rule.measureRepeated(
+        packageName = <span class="str">"com.example.notes"</span>,
+        metrics = listOf(StartupTimingMetric()),
+        iterations = <span class="num">5</span>,
+        startupMode = StartupMode.COLD
+    ) {
+        pressHome()
+        startActivityAndWait()
+    }
+
+    <span class="anno">@Test fun</span> scrollPerf() = rule.measureRepeated(
+        packageName = <span class="str">"com.example.notes"</span>,
+        metrics = listOf(FrameTimingMetric()),
+        iterations = <span class="num">5</span>,
+        startupMode = StartupMode.WARM
+    ) {
+        pressHome(); startActivityAndWait()
+        device.findObject(By.res(<span class="str">"feed"</span>)).fling(Direction.DOWN)
+    }
+}</code></pre>
+
+<p>Pair with <strong>Baseline Profile generation</strong> (<code>BaselineProfileRule</code>) — same Macrobenchmark machinery, but records hot methods to ship in your APK for AOT compilation.</p>
+
+<!-- =============== 23. COVERAGE =============== -->
+<h2 id="s23">23. Code coverage — Kover (KMP) &amp; JaCoCo (JVM)</h2>
+
+<pre><code><span class="com">// build.gradle.kts</span>
+plugins {
+    id(<span class="str">"org.jetbrains.kotlinx.kover"</span>) <span class="kw">version</span> <span class="str">"0.7.6"</span>
+}
+
+kover {
+    reports {
+        verify {
+            rule {
+                bound { minValue = <span class="num">80</span> }    <span class="com">// fail CI if &lt; 80% line coverage</span>
+            }
+        }
+    }
+}</code></pre>
+
+<p>Run: <code>./gradlew koverHtmlReport koverVerify</code>.</p>
+
+<div class="callout warn"><strong>Coverage trap:</strong> 100% coverage doesn't mean 100% tested. A test that calls a function and asserts nothing scores full coverage and tests nothing. Use coverage as a floor, not a goal.</div>
+
+<!-- =============== 24. MISTAKES =============== -->
+<h2 id="s24">24. Common mistakes &amp; anti-patterns</h2>
+
+<div class="two-col">
+  <div class="col-card bad"><strong>Don't</strong>
+    <ul>
+      <li>Test private methods directly (test through public)</li>
+      <li>Mock everything (over-coupled to implementation)</li>
+      <li>Use <code>Thread.sleep</code> in coroutine tests (use virtual time)</li>
+      <li>Share mutable fixtures across tests (flaky test cascade)</li>
+      <li>Test framework code (Room generated class is Google's responsibility)</li>
+      <li>Write tests that depend on test order (each test must be independent)</li>
+      <li>Use <code>runBlocking</code> in tests (use <code>runTest</code>)</li>
+      <li>Hit real network in unit tests (use MockWebServer)</li>
+      <li>Skip writing tests because "I'll add them later" (you won't)</li>
+      <li>Pursue 100% coverage (diminishing returns; flaky-test risk)</li>
+      <li>Mock data classes (just construct them with values)</li>
+      <li>Mock final classes when a fake works (Kotlin classes are final by default — fakes are usually cleaner)</li>
+    </ul>
+  </div>
+  <div class="col-card good"><strong>Do</strong>
+    <ul>
+      <li>Hoist state out of Composables — makes UI tests trivial</li>
+      <li>Inject dispatchers and clock</li>
+      <li>Use fakes for repositories, mocks only for verification</li>
+      <li>Run tests on every PR via CI</li>
+      <li>Treat flaky tests as bugs — fix or delete, never ignore</li>
+      <li>Write the test before the bug fix (proves the fix works)</li>
+      <li>Use <code>@TempDir</code> for any file-based test fixtures</li>
+      <li>Name tests as full sentences — they're documentation</li>
+      <li>Group related tests in nested classes (JUnit 5 <code>@Nested</code>)</li>
+      <li>Use parameterized tests for "same logic, many inputs"</li>
+      <li>Profile slow tests; aim for unit tests under 100 ms each</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 25. INTERVIEW Q&A =============== -->
+<h2 id="s25">25. Interview Q&amp;A — drill answers</h2>
+
+<h3>Q: "Fakes vs mocks — which do you prefer and why?"</h3>
+<p><strong>A:</strong> Fakes for almost everything that has substantial behavior (Repository, DataStore, Api). Mocks only when verifying interaction is the actual property under test (analytics, logger). Reasons: fakes survive refactors; tests look like normal code; hard-to-test contracts get caught (your fake exhibits the same edge cases). Mocks tightly couple tests to implementation; refactor breaks 50 mock setups.</p>
+
+<h3>Q: "How do you test a ViewModel that uses Coroutines and Flow?"</h3>
+<p><strong>A:</strong> Three pieces. (1) <code>Dispatchers.setMain(StandardTestDispatcher())</code> in setUp + <code>resetMain()</code> in tearDown — viewModelScope uses Dispatchers.Main which is unavailable in JVM tests by default. (2) Wrap the test body in <code>runTest(dispatcher)</code> for virtual time + <code>advanceUntilIdle()</code> to drain. (3) Use Turbine (<code>flow.test { awaitItem() }</code>) for asserting Flow emissions sequentially.</p>
+
+<h3>Q: "How do you test a Repository?"</h3>
+<p><strong>A:</strong> Inject fake DAO and fake Api into the real Repository implementation. Verify the data orchestration logic (e.g., "sync writes API results to DAO", "save persists locally and queues remote"). For DAO/Api themselves, separate tests — DAO with in-memory Room (instrumented), Api with MockWebServer.</p>
+
+<h3>Q: "How do you test a Composable?"</h3>
+<p><strong>A:</strong> Hoist state out — make it a stateless Composable taking <code>(state, callbacks)</code>. Then <code>createComposeRule()</code>, <code>setContent { MyScreen(state, callback) }</code>, <code>onNodeWithText/Tag</code> for selectors, <code>performClick</code>/<code>performTextInput</code> for interactions, <code>assertIsDisplayed</code>/<code>assertTextEquals</code> for assertions. The full screen with ViewModel just calls into the stateless one — separate Hilt integration test for the wiring.</p>
+
+<h3>Q: "When would you use Robolectric vs instrumented tests?"</h3>
+<p><strong>A:</strong> Robolectric runs Android API on JVM (fast, no emulator). Use for: SharedPreferences/Service/legacy Android API tests where you want speed. Instrumented tests run on a real device/emulator (slow but accurate). Use for: Room DAO (in-memory database), Compose UI tests, anything that needs real GL / hardware acceleration / system services beyond Robolectric's shadows.</p>
+
+<h3>Q: "What's the testing pyramid and why does shape matter?"</h3>
+<p><strong>A:</strong> Many fast cheap unit tests at the base, fewer integration tests in the middle, very few slow expensive UI tests at the top. Shape matters because UI tests are 10× slower and 10× flakier than unit tests for the same coverage. Inverted pyramids (many UI tests, few unit tests) make CI slow, flaky, and expensive — bug detection happens late on the cost curve.</p>
+
+<h3>Q: "How do you write testable code?"</h3>
+<p><strong>A:</strong> Five things: (1) constructor injection, never <code>val x = SomeStatic.create()</code>; (2) depend on interfaces, not implementations; (3) inject dispatcher and clock; (4) keep functions pure where possible; (5) hoist state in Compose. The pattern: every external dependency is a parameter; every parameter can be a fake.</p>
+
+<h3>Q: "Coroutine test — why <code>runTest</code> and not <code>runBlocking</code>?"</h3>
+<p><strong>A:</strong> <code>runTest</code> uses virtual time — <code>delay(60_000)</code> resolves immediately. Tests stay fast. <code>runBlocking</code> blocks real threads, makes tests slow and timing-sensitive. Use <code>runTest</code> for any test that touches coroutines, <code>runBlocking</code> only for bridging to legacy non-suspend code in test setup.</p>
+
+<h3>Q: "Why prefer MockK over Mockito for Kotlin?"</h3>
+<p><strong>A:</strong> MockK supports Kotlin features Mockito struggles with: final classes by default (Kotlin classes are final unless marked <code>open</code>), suspend functions (<code>coEvery</code>/<code>coVerify</code>), top-level functions, object/companion mocking, lambda captures. With Mockito you need <code>mockito-inline</code> for finals + manual setup for coroutines.</p>
+
+<h3>Q: "How do you test Hilt?"</h3>
+<p><strong>A:</strong> Annotate test class <code>@HiltAndroidTest</code>, add <code>HiltAndroidRule</code>, call <code>hilt.inject()</code> in <code>@Before</code>. Replace production modules in tests via <code>@TestInstallIn(replaces = [DataModule::class])</code> on a fake module. Use a custom Application for instrumented tests — generate via <code>@CustomTestApplication</code>.</p>
+
+<h3>Q: "How do you test code that depends on time?"</h3>
+<p><strong>A:</strong> Inject a <code>Clock</code> interface (<code>fun now(): Long</code>). Production: real Clock returning <code>System.currentTimeMillis()</code>. Tests: <code>FixedClock(100L)</code> returning a known value. Same trick for any system call — wrap behind an interface, inject, override in tests.</p>
+
+<h3>Q: "Should we test private methods?"</h3>
+<p><strong>A:</strong> No. Test through public methods; if a private method is too complex to be exercised that way, extract it to its own class with public methods. Testing privates couples tests to implementation; you'll be unable to refactor without rewriting tests.</p>
+
+<h3>Q: "What's a flaky test? How do you handle it?"</h3>
+<p><strong>A:</strong> A test that sometimes passes, sometimes fails with no code change. Causes: timing dependencies, shared state between tests, race conditions, network. Treat flaky tests as bugs — fix or delete, never ignore. Common fixes: use virtual time (<code>runTest</code>), isolate fixtures (<code>@TempDir</code>), use stable selectors (<code>testTag</code>), eliminate <code>Thread.sleep</code>.</p>
+
+<!-- =============== 26. RECALL CARD =============== -->
+<h2 id="s26">26. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The mental model</h3>
+  <p>UI = f(state). Test logic in isolation (unit), test wiring across layers (integration), test critical user journeys (E2E). Push every test as low on the pyramid as possible. Design for testability: inject everything, depend on interfaces.</p>
+
+  <h3>The latest stack (2026)</h3>
+  <ul>
+    <li>JUnit 5 (JVM) / Kotest (KMP)</li>
+    <li>MockK (mocks) + hand-written fakes (preferred for repos)</li>
+    <li><code>kotlinx-coroutines-test</code> + Turbine</li>
+    <li>MockWebServer for HTTP</li>
+    <li>Room in-memory for DAO</li>
+    <li>Robolectric for Android API on JVM</li>
+    <li>Compose Test rule for UI</li>
+    <li>Hilt testing for DI integration</li>
+    <li>Paparazzi / Roborazzi for screenshots</li>
+    <li>Macrobenchmark for perf</li>
+    <li>Maestro for E2E flows</li>
+    <li>Kover / JaCoCo for coverage</li>
+  </ul>
+
+  <h3>Layer → testing approach</h3>
+  <ul>
+    <li>Plain class → JUnit 5</li>
+    <li>UseCase → JUnit 5 + fakes</li>
+    <li>Repository → JUnit 5 + fake DAO + fake Api</li>
+    <li>ViewModel → JUnit 5 + setMain dispatcher + Turbine</li>
+    <li>Room DAO → instrumented + in-memory DB</li>
+    <li>Retrofit Api → JUnit 5 + MockWebServer</li>
+    <li>Composable → Compose test rule (hoist state for testability)</li>
+    <li>Service → extract logic to plain class, test that</li>
+    <li>ContentProvider → wrap in DataSource interface, test through that</li>
+    <li>SharedPrefs / DataStore → temp directory + real instance</li>
+  </ul>
+
+  <h3>Testability principles</h3>
+  <ul>
+    <li>Constructor injection</li>
+    <li>Depend on interfaces</li>
+    <li>Inject dispatcher + clock</li>
+    <li>Pure functions</li>
+    <li>Hoist Compose state</li>
+    <li>No hidden global state</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li><code>runBlocking</code> in tests</li>
+    <li>Mocks for repositories (use fakes)</li>
+    <li>Testing private methods</li>
+    <li>Shared mutable fixtures</li>
+    <li><code>Thread.sleep</code></li>
+    <li>Real network in unit tests</li>
+    <li>Pursuing 100% coverage</li>
+    <li>Order-dependent tests</li>
+    <li>Flaky tests left in CI</li>
+  </ul>
+</div>
+
+<!-- =============== END =============== -->
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read top-to-bottom for understanding · skim §24 (mistakes), §25 (Q&amp;A), §26 (recall) before any interview.
+    Pair with the <strong>Architecture Patterns</strong>, <strong>Coroutines</strong>, and <strong>Compose</strong> cheat sheets in this repo.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'test-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
