@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jetpack Compose Cheat Sheet — Easy to Advanced + Internals</title>
+<meta name="description" content="A dense personal cheat sheet for Jetpack Compose: from @Composable basics through state, recomposition, and side effects to deep internals (compiler transforms, slot table, snapshot system, smart recomposition). Interview-prep flavor with tricks, do's and don'ts, when-to-use-which, and the 'what's NOT magic' demystification." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55; font-size: 15px;
+  }
+  .layout {
+    display: grid; grid-template-columns: 270px minmax(0, 1fr);
+    gap: 28px; max-width: 1280px; margin: 0 auto; padding: 0 20px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 18px 6px 24px 0; border-right: 1px solid var(--border);
+    font-size: 0.84rem;
+  }
+  .sidebar a {
+    display: block; color: var(--fg); text-decoration: none;
+    padding: 4px 10px; border-radius: 6px; line-height: 1.3;
+  }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 8px 20px; display: flex; gap: 10px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  .topbar input.search {
+    flex: 1; max-width: 420px; padding: 7px 10px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--fg); font-size: 0.92rem;
+  }
+  .topbar input.search:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .iconbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--fg); font-size: 0.82rem; cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--surface-2); }
+
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.2; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 {
+    font-size: 1.4rem; margin: 36px 0 12px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  h3 { font-size: 1.05rem; margin: 18px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.95rem; margin: 12px 0 6px; }
+  p { margin: 0 0 8px; }
+
+  .cover {
+    text-align: center; padding: 36px 20px 26px; margin-bottom: 22px;
+    background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%);
+    color: #fff; border-radius: 14px;
+  }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+
+  code {
+    background: var(--surface); color: #c7254e;
+    padding: 2px 5px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg);
+    border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem; line-height: 1.5;
+    margin: 8px 0 12px;
+    border: 1px solid var(--code-border); position: relative;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+  pre .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #c9d1d9; padding: 3px 8px; border-radius: 5px;
+    font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn.copied { background: #1f7a3f; color: white; opacity: 1; }
+  .kw { color: #ff7b72; } .str { color: #a5d6ff; } .com { color: #8b949e; font-style: italic; }
+  .fn { color: #d2a8ff; } .num { color: #79c0ff; } .anno { color: #ffa657; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 8px 0 14px;
+    font-size: 0.85rem;
+  }
+  th, td {
+    text-align: left; padding: 6px 10px; vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface); color: var(--fg-strong); font-weight: 700;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+
+  .callout {
+    background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 10px 0; font-size: 0.92rem;
+  }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.92rem;
+  }
+  .col-card.bad { border-left: 4px solid var(--bad); }
+  .col-card.good { border-left: 4px solid var(--good); }
+  .col-card strong { display: block; margin-bottom: 4px; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.4px; }
+  .col-card.good strong { color: var(--good); }
+  .col-card.bad strong { color: var(--bad); }
+
+  .recall-card {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 0.92rem; line-height: 1.65;
+  }
+  .recall-card h3 { margin-top: 0; }
+  .recall-card ul { columns: 2; column-gap: 24px; padding-left: 16px; }
+  @media (max-width: 700px) { .recall-card ul { columns: 1; } }
+
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar, .copy-btn { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    pre, table, .callout, .two-col { page-break-inside: avoid;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Compose · Cheat Sheet</strong>
+  <input type="search" class="search" placeholder="Search..." id="searchInput" />
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Jetpack Compose — Cheat Sheet</h1>
+  <div class="subtitle">From @Composable basics through state, recomposition, side effects, and deep internals · Interview-prep flavor</div>
+  <div class="badges">
+    <span class="badge">26 sections</span>
+    <span class="badge">Easy → Advanced</span>
+    <span class="badge">Internals demystified</span>
+    <span class="badge">2026 Edition</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>About this sheet:</strong> a personal high-density study aid for Jetpack Compose, written entirely in plain English with original examples and standard idiomatic patterns. Covers the full spectrum: from "what is <code>@Composable</code>" through state, recomposition, side effects, modifiers, the three phases (composition / layout / drawing), animations, navigation, accessibility, testing — and the deep internals (compiler transforms, slot table, snapshot system, smart recomposition). Includes a "★ Internals — what's NOT magic" demystification section, a comprehensive do's-and-don'ts list, and a one-page recall card. Pair with an internals book like <em>Jetpack Compose Internals</em> by Jorge Castillo for the next level of depth.
+</section>
+
+<!-- =============== 1. THE MENTAL MODEL =============== -->
+<h2 id="s1">1. The mental model — Compose in 60 seconds</h2>
+
+<p>Jetpack Compose is a <strong>declarative</strong> Kotlin-DSL UI toolkit. You describe <em>what</em> the UI should look like for a given state; Compose figures out <em>how</em> to update the screen when state changes.</p>
+
+<table>
+  <thead><tr><th></th><th>Old View system (XML + Kotlin/Java)</th><th>Jetpack Compose</th></tr></thead>
+  <tbody>
+    <tr><td>Style</td><td>Imperative: mutate views directly</td><td>Declarative: UI = f(state)</td></tr>
+    <tr><td>Source of UI definition</td><td>XML + code merging via findViewById/binding</td><td>One Kotlin file with <code>@Composable</code> functions</td></tr>
+    <tr><td>State sync</td><td>Manual (you push state into views, easy to drift)</td><td>Automatic (state change → recomposition)</td></tr>
+    <tr><td>Custom UI</td><td>Custom View / ViewGroup (heavy)</td><td>Custom <code>Composable</code> + <code>Layout</code> (light)</td></tr>
+    <tr><td>Animation</td><td>Animator + ObjectAnimator</td><td><code>animate*AsState</code>, <code>Transition</code>, integrated</td></tr>
+    <tr><td>Live preview</td><td>Layout Inspector after launch</td><td><code>@Preview</code> in Android Studio, instant</td></tr>
+  </tbody>
+</table>
+
+<p>Three things to internalize:</p>
+<ol>
+  <li><strong>UI is a function of state.</strong> Same state in → same UI out. Never mutate widgets directly.</li>
+  <li><strong>Recomposition is cheap, not free.</strong> Compose reruns Composable functions when state they read changes. The runtime tries to skip subtrees that haven't changed (smart recomposition), but writing skippable code is on you.</li>
+  <li><strong>Composables are short-lived.</strong> The function body re-runs many times. Side effects must go in side-effect APIs, not the function body itself.</li>
+</ol>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Greeting(name: String) {
+    Text(<span class="str">"Hello, $name!"</span>)
+}
+<span class="com">// Compose runtime tracks the read of `name`. Any change → just this Composable re-runs.</span></code></pre>
+
+<!-- =============== 2. COMPOSABLE FUNCTIONS =============== -->
+<h2 id="s2">2. Composable functions — what <code>@Composable</code> actually does</h2>
+
+<p><code>@Composable</code> is not a marker. It changes the function's type and contract. After the Compose Compiler plugin runs, your function silently gets a hidden <code>Composer</code> parameter, plus extra bookkeeping parameters (more in §6 internals).</p>
+
+<pre><code><span class="com">// You write:</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> NamePlate(name: String) { Text(name) }
+
+<span class="com">// Compiler emits roughly:</span>
+<span class="kw">fun</span> NamePlate(name: String, $composer: Composer, $changed: Int) { ... }</code></pre>
+
+<p>That hidden <code>Composer</code> parameter is what makes the magic work. Composables can <strong>only be called from other Composables</strong> (or special entry points like <code>setContent</code>) — because only then is a Composer in scope to hand off.</p>
+
+<h3>The five rules of well-behaved Composable functions</h3>
+<table>
+  <thead><tr><th>Rule</th><th>What it means</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Calling context</strong></td><td>Can only be invoked where a Composer is in scope</td><td>The runtime needs the Composer to track this call's position in the tree</td></tr>
+    <tr><td><strong>Idempotent</strong></td><td>Same inputs produce same effect on the tree, every time</td><td>So Compose can skip / replay safely</td></tr>
+    <tr><td><strong>Free of side effects</strong></td><td>The body itself doesn't observably change app state outside Compose</td><td>Side effects belong in <code>LaunchedEffect</code> / <code>DisposableEffect</code> / <code>SideEffect</code></td></tr>
+    <tr><td><strong>Restartable</strong></td><td>Compose may re-run the function many times when its inputs change</td><td>Your code must tolerate repeated execution without breaking</td></tr>
+    <tr><td><strong>Fast</strong></td><td>Body should be cheap (microseconds), not do real work</td><td>Recomposition happens on the UI thread; slow Composables = jank</td></tr>
+  </tbody>
+</table>
+
+<p>Bonus rule: Composables are also <strong>positionally memoized</strong> — Compose tracks each call's position in the tree, so two calls to the same Composable at different positions are independent.</p>
+
+<h3>Composable functions are "colored" — like <code>suspend</code></h3>
+<p>Just like <code>suspend</code>, <code>@Composable</code> partitions the function space. A regular function can't call a Composable. A Composable can only be called from another Composable (or a builder like <code>setContent { }</code> or <code>composable { }</code>). This is enforced at compile time. Same idea as Kotlin's "colored" suspend functions.</p>
+
+<!-- =============== 3. STATE =============== -->
+<h2 id="s3">3. State — <code>mutableStateOf</code>, <code>remember</code>, <code>rememberSaveable</code></h2>
+
+<p>State is what makes recomposition meaningful. Compose tracks every State read inside Composables; when that State's value changes, the readers are scheduled for recomposition.</p>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Counter() {
+    <span class="kw">var</span> count <span class="kw">by</span> remember { mutableStateOf(<span class="num">0</span>) }   <span class="com">// State of Int</span>
+    Button(onClick = { count++ }) {                  <span class="com">// write — State updates</span>
+        Text(<span class="str">"Clicks: $count"</span>)                       <span class="com">// read — this Text recomposes when count changes</span>
+    }
+}</code></pre>
+
+<table>
+  <thead><tr><th>Helper</th><th>Survives recomposition?</th><th>Survives config change?</th><th>Survives process death?</th></tr></thead>
+  <tbody>
+    <tr><td><code>remember { ... }</code></td><td>Yes</td><td>No</td><td>No</td></tr>
+    <tr><td><code>rememberSaveable { ... }</code></td><td>Yes</td><td>Yes (via Bundle)</td><td>Yes (via Bundle)</td></tr>
+    <tr><td>State in ViewModel</td><td>Yes</td><td>Yes</td><td>No (use <code>SavedStateHandle</code> for that)</td></tr>
+  </tbody>
+</table>
+
+<h3>The four State factories you'll use</h3>
+<ul>
+  <li><code>mutableStateOf(initial)</code> — basic <code>MutableState&lt;T&gt;</code>. Use <code>by</code> delegate for property-style access.</li>
+  <li><code>mutableIntStateOf(0)</code> / <code>mutableLongStateOf</code> / etc. — primitive variants, avoid boxing in hot paths (lists, animations).</li>
+  <li><code>mutableStateListOf()</code> / <code>mutableStateMapOf()</code> — observable lists/maps; mutating them triggers recomposition of readers.</li>
+  <li><code>derivedStateOf { computed }</code> — wraps a derived value so recomposition fires only when the result actually changes (see §10).</li>
+</ul>
+
+<div class="callout warn"><strong>Don't:</strong> use plain <code>var x = 0</code> inside a Composable for mutable UI state. Updating it does <em>not</em> trigger recomposition. Always wrap mutable UI state in <code>State</code>.</div>
+
+<h3>What <code>by</code> actually does</h3>
+<p><code>var count by remember { mutableStateOf(0) }</code> uses Kotlin property delegation. The delegate's <code>getValue</code> reads <code>state.value</code>, the <code>setValue</code> writes it. So <code>count++</code> compiles to <code>state.value = state.value + 1</code>. Pure syntactic sugar — the State object is still what Compose tracks.</p>
+
+<!-- =============== 4. RECOMPOSITION =============== -->
+<h2 id="s4">4. Recomposition — what it is, when it happens</h2>
+
+<p><strong>Recomposition</strong> = re-running a Composable function with new inputs. It happens because something the Composable read (a State value, a CompositionLocal, or one of its parameters) changed.</p>
+
+<h3>What gets recomposed?</h3>
+<ul>
+  <li>Compose tracks <em>which</em> Composable read which State.</li>
+  <li>When State changes, Compose schedules the smallest enclosing <strong>RecomposeScope</strong> (typically the nearest restartable Composable function) for re-execution.</li>
+  <li>Other parts of the tree are <strong>skipped</strong> if their inputs haven't changed and their parameters are <strong>stable</strong> (see §9 for stability).</li>
+</ul>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Counter() {
+    <span class="kw">var</span> a <span class="kw">by</span> remember { mutableStateOf(<span class="num">0</span>) }
+    <span class="kw">var</span> b <span class="kw">by</span> remember { mutableStateOf(<span class="num">0</span>) }
+    Column {
+        Text(<span class="str">"A: $a"</span>)            <span class="com">// reads a → only this Text re-runs when a changes</span>
+        Text(<span class="str">"B: $b"</span>)            <span class="com">// reads b → only this Text re-runs when b changes</span>
+        Button(onClick = { a++ }) { Text(<span class="str">"+A"</span>) }
+        Button(onClick = { b++ }) { Text(<span class="str">"+B"</span>) }
+    }
+}</code></pre>
+
+<p>Tapping <code>+A</code> only re-runs the first Text. The Column, Buttons, and the second Text are skipped. This is the heart of "smart recomposition."</p>
+
+<div class="callout"><strong>Tip — Layout Inspector:</strong> turn on "Show recomposition counts" in Android Studio's Layout Inspector to see exactly which Composables recompose, how often, and how many were skipped. Best perf-debugging tool you have.</div>
+
+<!-- =============== 5. STATE HOISTING =============== -->
+<h2 id="s5">5. State hoisting — the most important pattern</h2>
+
+<p>"Hoist state" = move state out of a Composable to its caller. The Composable becomes <strong>stateless</strong> and accepts <code>(value, onValueChange)</code> as parameters. Now it's reusable, testable, previewable, and the caller controls behavior.</p>
+
+<pre><code><span class="com">// Bad: state hidden inside, no way for caller to read or react</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> NameInput() {
+    <span class="kw">var</span> name <span class="kw">by</span> remember { mutableStateOf(<span class="str">""</span>) }
+    TextField(name, onValueChange = { name = it })
+}
+
+<span class="com">// Good: hoisted</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> NameInput(name: String, onNameChange: (String) -&gt; Unit) {
+    TextField(name, onValueChange = onNameChange)
+}
+
+<span class="com">// Caller owns state — can validate, persist, share with other Composables</span>
+<span class="kw">var</span> name <span class="kw">by</span> rememberSaveable { mutableStateOf(<span class="str">""</span>) }
+NameInput(name, onNameChange = { name = it.trim() })</code></pre>
+
+<h3>Where should state live?</h3>
+<ul>
+  <li><strong>UI-only ephemeral</strong> (focus state, expanded/collapsed, scroll position) → in the Composable via <code>remember</code></li>
+  <li><strong>Survives rotation but not process death</strong> → ViewModel (<code>StateFlow</code> + <code>collectAsStateWithLifecycle</code>)</li>
+  <li><strong>Survives process death</strong> → <code>rememberSaveable</code> for small primitives, <code>SavedStateHandle</code> in ViewModel for VM-scoped, Room/DataStore for durable</li>
+  <li><strong>Shared across Composables</strong> → hoist to lowest common ancestor; for app-wide, ViewModel</li>
+</ul>
+
+<p>Rule of thumb: hoist state to the <em>lowest common ancestor</em> of all Composables that need it. Don't hoist higher than necessary (creates unnecessary recompositions).</p>
+
+<!-- =============== 6. ★ INTERNALS =============== -->
+<h2 id="smagic">★ Internals — what's NOT magic (the engine demystified)</h2>
+
+<p>People treat Compose as magic. It isn't. Every "magic" behavior is a small piece of plain Kotlin code. Once you understand the engine, the framework's quirks make sense and you stop fighting it.</p>
+
+<h3>The three big building blocks</h3>
+<ol>
+  <li><strong>Compose Compiler</strong> — a Kotlin compiler plugin that rewrites every <code>@Composable</code> function to inject the <code>Composer</code> and add tracking metadata.</li>
+  <li><strong>Compose Runtime</strong> — the in-memory data structure (the <em>slot table</em>) that records what was composed, plus the <em>Composer</em> that manages reading/writing it.</li>
+  <li><strong>Snapshot System</strong> — the read-tracking mechanism that knows which Composable read which State, so changes can invalidate the right RecomposeScopes.</li>
+</ol>
+
+<h3>1. What the Compose Compiler does to your @Composable function</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> annotating a function with <code>@Composable</code> somehow adds Compose superpowers.<br/>
+<strong>Actually:</strong> the Compose Compiler plugin transforms each Composable in three ways:
+</div>
+<ol>
+  <li><strong>Injects hidden parameters</strong>: a <code>Composer</code> instance + a <code>$changed: Int</code> bitmask + a <code>$default: Int</code> bitmask (for default arguments).</li>
+  <li><strong>Wraps the body</strong> in <code>composer.startRestartGroup(key)</code> and <code>composer.endRestartGroup()?.updateScope { ... }</code>. This creates a <em>RecomposeScope</em> — the unit Compose can re-execute on its own.</li>
+  <li><strong>Adds skip logic</strong>: at the top of the function, check if all parameters are unchanged AND stable. If yes, call <code>composer.skipToGroupEnd()</code> and return without running the body — that's <strong>recomposition skipping</strong>.</li>
+</ol>
+<pre><code><span class="com">// You write:</span>
+<span class="anno">@Composable</span> <span class="kw">fun</span> Greeting(name: String) { Text(<span class="str">"Hello $name"</span>) }
+
+<span class="com">// Compiler emits roughly (simplified):</span>
+<span class="kw">fun</span> Greeting(name: String, $composer: Composer, $changed: Int) {
+    $composer.startRestartGroup(<span class="num">0xABCD</span>)
+    <span class="kw">var</span> dirty = $changed
+    <span class="kw">if</span> ($changed <span class="kw">and</span> <span class="num">0b1</span> == <span class="num">0</span>)
+        dirty = dirty <span class="kw">or</span> <span class="kw">if</span> ($composer.changed(name)) <span class="num">0b100</span> <span class="kw">else</span> <span class="num">0b10</span>
+
+    <span class="kw">if</span> (dirty <span class="kw">and</span> <span class="num">0b11</span> != <span class="num">0b10</span> || !$composer.skipping) {
+        Text(<span class="str">"Hello $name"</span>, $composer, <span class="num">0</span>)
+    } <span class="kw">else</span> {
+        $composer.skipToGroupEnd()                <span class="com">// ← skip!</span>
+    }
+
+    $composer.endRestartGroup()?.updateScope { c, _ -&gt;
+        Greeting(name, c, $changed <span class="kw">or</span> <span class="num">1</span>)        <span class="com">// how to re-run if invalidated</span>
+    }
+}</code></pre>
+
+<h3>2. The slot table — Compose's in-memory tree</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> Compose somehow remembers state across recompositions even though Composables are just function calls.<br/>
+<strong>Actually:</strong> the Composer maintains a <strong>slot table</strong>, which is a flat array (gap buffer) representing the tree of all Composable calls and their stored values. Every <code>remember</code>, every <code>State</code>, every parameter, every group boundary — they all become <em>slots</em> in this array.
+</div>
+<p>How a Composable reads/writes the slot table:</p>
+<ul>
+  <li>On first composition, Compose <em>writes</em> a new entry: a group token, the parameters, the <code>remember</code>ed values.</li>
+  <li>On recomposition, Compose <em>reads</em> the entry at the same position, comparing parameters. If unchanged, skip. If changed, update.</li>
+  <li>The flat-array layout means traversal is cache-friendly. The "gap buffer" lets Compose insert/remove items in the middle efficiently.</li>
+</ul>
+
+<h3>3. Positional memoization — why <code>remember</code> works</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> calling <code>remember { generateExpensiveValue() }</code> twice doesn't run the lambda twice — even though it's a normal Kotlin function call.<br/>
+<strong>Actually:</strong> <code>remember</code> stores its result at the current position in the slot table. On re-execution, it asks the Composer "is there already a value at this position with these inputs?" If yes, returns it without invoking the lambda. The "position" is determined by the call site in the source code (Composer's source-location tracking), not by argument identity. <em>That's why two <code>remember</code> calls in the same function produce two independent memoized values.</em>
+</div>
+<pre><code><span class="anno">@Composable fun</span> Demo() {
+    <span class="kw">val</span> a = remember { compute(<span class="num">1</span>) }    <span class="com">// stored at position P1</span>
+    <span class="kw">val</span> b = remember { compute(<span class="num">2</span>) }    <span class="com">// stored at position P2</span>
+    <span class="com">// Even if compute(1) == compute(2), these are DIFFERENT memoized slots.</span>
+}</code></pre>
+
+<h3>4. The snapshot system — how reads of State get tracked</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> reading <code>state.value</code> inside a Composable somehow registers that "this Composable depends on this State."<br/>
+<strong>Actually:</strong> when Compose enters a RecomposeScope, it sets a thread-local <code>SnapshotObserver</code>. Every <code>state.value</code> read goes through the State's <code>readable</code> method, which calls back to the observer: "scope X read state Y." The observer records this in a (state → scopes) map. When state.value is later set to a new value, the observer fires the recomposition for every scope that read it.
+</div>
+<p>This is why Composable functions must read State <em>during</em> their execution — not later, not in a callback. If the read happens outside the observer's context, it's not tracked, and recomposition won't trigger.</p>
+
+<h3>5. The Snapshot itself — MVCC for State</h3>
+<p>Snapshots aren't just a tracking mechanism. Each Snapshot is a <em>versioned view</em> of all State at a point in time. This enables:</p>
+<ul>
+  <li><strong>Concurrent reads</strong>: composition can read State while another thread is mutating, without locks — each side sees a consistent snapshot.</li>
+  <li><strong>Atomic mutation</strong>: <code>Snapshot.takeMutableSnapshot()</code> lets you mutate State in isolation, then atomically <code>apply()</code> all changes together (or abandon them).</li>
+  <li><strong>Conflict detection</strong>: when applying, Compose checks for write conflicts and can merge/reject.</li>
+</ul>
+<p>It's basically Multi-Version Concurrency Control (MVCC), the same idea databases use.</p>
+
+<h3>6. Smart Recomposition — why most of the tree is skipped</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> only the affected Composable re-runs; thousands of others are skipped.<br/>
+<strong>Actually:</strong> three things combine.
+</div>
+<ol>
+  <li><strong>Per-State subscriber tracking</strong> (above) → Compose knows exactly which RecomposeScopes depend on the changed State.</li>
+  <li><strong>Per-parameter change check</strong> via <code>$changed</code> bitmask → on entry to a Composable, Compose compares old vs new parameters bit-by-bit; unchanged + stable means "skip the body."</li>
+  <li><strong>Slot-table replay</strong> → for skipped groups, Compose just advances the slot table pointer without executing — the values are already there.</li>
+</ol>
+
+<h3>7. What is a RecomposeScope?</h3>
+<p>A RecomposeScope is the smallest unit of Composition that Compose can re-run independently. By default, every restartable Composable function is its own scope. Inline functions and lambdas with the <code>@Composable</code> annotation may or may not get their own scope (the compiler decides based on whether they have parameters and whether they're stable).</p>
+<p>Practical impact: <strong>if you read State inside a Composable, the smallest enclosing scope is invalidated</strong>. So defer reads as far down the tree as possible — read inside a leaf, not the root.</p>
+
+<h3>8. Lambdas inside Composables get memoized</h3>
+<div class="callout">
+<strong>Looks like magic:</strong> passing <code>onClick = { vm.click() }</code> doesn't cause infinite recompositions even though a new lambda is created on every call.<br/>
+<strong>Actually:</strong> the Compose Compiler does <em>lambda memoization</em>. If a lambda has no captured variables, or all its captures are stable and unchanged, the compiler wraps it in a <code>remember</code>-equivalent slot and reuses the same instance. So your child Composable receives the same lambda reference and stays skippable.
+</div>
+
+<h3>9. The Recomposer — the orchestrator</h3>
+<p>The <strong>Recomposer</strong> is a singleton coroutine running on the AndroidUiDispatcher (Compose's UI dispatcher). It receives invalidation signals from State changes, batches them per frame, and triggers recomposition on the affected scopes when the next frame is requested. This is why state changes are coalesced — multiple mutations in the same frame produce a single recomposition.</p>
+
+<h3>10. <code>setContent { }</code> — what actually happens at the entry point</h3>
+<ul>
+  <li>An <code>AbstractComposeView</code> is added to the View hierarchy.</li>
+  <li>A <code>Composition</code> is created, attached to a <code>Recomposer</code>.</li>
+  <li>The first composition runs your <code>setContent { }</code> block, building the slot table and creating the LayoutNode tree.</li>
+  <li>The LayoutNode tree integrates with the View system's measure/layout/draw pass.</li>
+</ul>
+
+<div class="callout good"><strong>Takeaway:</strong> Compose is a small, elegant runtime — a slot table, a Composer, and a snapshot system. Once you understand these three, "advanced" Compose stops feeling mysterious. Reading the kotlinx Compose source becomes routine, not intimidating.</div>
+
+<!-- =============== 7. SIDE EFFECTS =============== -->
+<h2 id="s7">7. Side effects — picking the right effect API</h2>
+
+<p>Composables must be pure. To do anything that affects the outside world (network call, register a listener, start a timer), use a side-effect API. Compose ties these to the Composable's lifecycle so cleanup is automatic.</p>
+
+<h3>The decision tree</h3>
+<table>
+  <thead><tr><th>API</th><th>When to use</th><th>Cleans up via</th></tr></thead>
+  <tbody>
+    <tr><td><code>LaunchedEffect(key1, key2, ...) { }</code></td><td>Run a coroutine; cancel + restart when keys change</td><td>Coroutine cancellation when scope leaves composition or keys change</td></tr>
+    <tr><td><code>DisposableEffect(key) { ... onDispose { } }</code></td><td>Register/unregister listeners, observers, callbacks</td><td><code>onDispose { }</code> block</td></tr>
+    <tr><td><code>SideEffect { }</code></td><td>Publish a Compose state value to non-Compose code (analytics, mutable singletons)</td><td>Runs after every successful recomposition</td></tr>
+    <tr><td><code>rememberCoroutineScope()</code></td><td>Launch coroutines from event handlers (button clicks, drag end)</td><td>Scope cancelled when Composable leaves composition</td></tr>
+    <tr><td><code>produceState(initial, key) { value = ... }</code></td><td>Convert a non-Compose async source to <code>State&lt;T&gt;</code></td><td>Coroutine cancelled on scope leave / key change</td></tr>
+    <tr><td><code>derivedStateOf { computed }</code></td><td>Compute a value derived from other State; only recomposes readers when result changes</td><td>Tied to its enclosing <code>remember</code></td></tr>
+    <tr><td><code>rememberUpdatedState(value)</code></td><td>Capture latest value in a long-running effect without restarting it</td><td>Reference; no cleanup</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="anno">@Composable fun</span> UserScreen(userId: String) {
+    <span class="com">// LaunchedEffect — restart on userId change</span>
+    LaunchedEffect(userId) { vm.load(userId) }
+
+    <span class="com">// DisposableEffect — register/unregister</span>
+    DisposableEffect(Unit) {
+        analytics.startTracking()
+        onDispose { analytics.stopTracking() }
+    }
+
+    <span class="com">// rememberCoroutineScope — launch from event handlers</span>
+    <span class="kw">val</span> scope = rememberCoroutineScope()
+    Button(onClick = { scope.launch { vm.refresh() } }) { Text(<span class="str">"Refresh"</span>) }
+}</code></pre>
+
+<div class="callout warn"><strong>Don't:</strong> call <code>LaunchedEffect</code> from inside an <code>onClick</code>. <code>LaunchedEffect</code> is a Composable, not a regular function — it must be in the Composable body. For event-driven launches use <code>rememberCoroutineScope</code>.</div>
+
+<h3>The classic <code>rememberUpdatedState</code> use case</h3>
+<pre><code><span class="anno">@Composable fun</span> Timer(onTimeout: () -&gt; Unit) {
+    <span class="com">// Capture latest onTimeout, but don't restart the timer when it changes</span>
+    <span class="kw">val</span> currentOnTimeout <span class="kw">by</span> rememberUpdatedState(onTimeout)
+    LaunchedEffect(Unit) {
+        delay(<span class="num">5_000</span>)
+        currentOnTimeout()           <span class="com">// always uses the latest version</span>
+    }
+}</code></pre>
+
+<!-- =============== 8. derivedStateOf =============== -->
+<h2 id="s8"><code>8. derivedStateOf</code> — when to use it (and when not)</h2>
+
+<p><code>derivedStateOf</code> wraps a computed value and only emits a new value when the <em>result</em> changes — even if its inputs change frequently.</p>
+
+<pre><code><span class="anno">@Composable fun</span> ScrollAwareFab(listState: LazyListState) {
+    <span class="com">// Bad: recomposes every scroll pixel — even when the boolean doesn't flip</span>
+    <span class="kw">val</span> showButton = listState.firstVisibleItemIndex &gt; <span class="num">10</span>
+
+    <span class="com">// Good: only recomposes when the boolean actually flips</span>
+    <span class="kw">val</span> showButton <span class="kw">by</span> remember {
+        derivedStateOf { listState.firstVisibleItemIndex &gt; <span class="num">10</span> }
+    }
+
+    <span class="kw">if</span> (showButton) FloatingActionButton(...) { Icon(...) }
+}</code></pre>
+
+<table>
+  <thead><tr><th>Use derivedStateOf when</th><th>Don't use it when</th></tr></thead>
+  <tbody>
+    <tr><td>Inputs change far more often than the derived result (scroll position → "show button?")</td><td>The input changes infrequently — adds allocation + indirection for no gain</td></tr>
+    <tr><td>The derivation is expensive AND inputs are noisy</td><td>You're just transforming one State into another with the same change rate</td></tr>
+    <tr><td>You want a single flat boolean derived from multiple noisy sources</td><td>You're inside a non-Composable — <code>derivedStateOf</code> is a runtime construct, can be used outside Composables but typically paired with <code>remember</code></td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn"><strong>Common mistake:</strong> <code>derivedStateOf</code> without <code>remember</code> is rebuilt on every recomposition — same observation cost as plain reads. Always pair with <code>remember</code>.</div>
+
+<!-- =============== 9. STABILITY =============== -->
+<h2 id="s9">9. Stability — why it matters and how to fix unstable types</h2>
+
+<p>"Stable" types are types Compose can prove won't change in surprising ways. Stable + unchanged parameters = the Composable can be <strong>skipped</strong> on recomposition. Unstable parameters = Compose conservatively re-runs the Composable.</p>
+
+<h3>What's stable by default</h3>
+<ul>
+  <li>Primitives (Int, Long, Boolean, Float, Double, Char) and Strings</li>
+  <li>Function types (lambdas) — but only if their captures are stable</li>
+  <li><code>State&lt;T&gt;</code> and <code>MutableState&lt;T&gt;</code></li>
+  <li>Types annotated <code>@Stable</code> or <code>@Immutable</code></li>
+  <li>data classes whose properties are all stable types</li>
+</ul>
+
+<h3>What's <em>not</em> stable by default</h3>
+<ul>
+  <li><code>List&lt;T&gt;</code>, <code>Set&lt;T&gt;</code>, <code>Map&lt;K, V&gt;</code> from kotlin.collections — they could be MutableList</li>
+  <li>Interfaces (Compose can't see the implementation; assumes worst case)</li>
+  <li>Classes with <code>var</code> properties</li>
+  <li>Classes from other modules (compiler can't infer stability without seeing the source)</li>
+</ul>
+
+<h3>The two annotations</h3>
+<pre><code><span class="anno">@Immutable</span>
+<span class="kw">data class</span> User(<span class="kw">val</span> id: String, <span class="kw">val</span> name: String)
+<span class="com">// Promise: properties never change after construction. Compose treats as fully stable.</span>
+
+<span class="anno">@Stable</span>
+<span class="kw">class</span> CounterStore {
+    <span class="kw">var</span> count <span class="kw">by</span> mutableStateOf(<span class="num">0</span>)
+}
+<span class="com">// Promise: properties may change, but I'll notify Compose via State. Compose treats as stable.</span></code></pre>
+
+<h3>Strong skipping mode (Compose Compiler 1.5.4+)</h3>
+<p>Even unstable parameters can now be <strong>skippable</strong> if they pass an <code>equals()</code> check. Practical effect: most stability bugs disappear in Compose 1.6+. Still, mark types <code>@Immutable</code> when you can — it's clearer and handles cases where equals is O(N).</p>
+
+<h3>How to inspect stability</h3>
+<p>Add the Compose Compiler metrics flag to your Gradle config:</p>
+<pre><code>composeCompiler {
+    metricsDestination = layout.buildDirectory.dir(<span class="str">"compose-metrics"</span>)
+    reportsDestination = layout.buildDirectory.dir(<span class="str">"compose-reports"</span>)
+}</code></pre>
+<p>After a release build, the reports directory contains per-module <code>*-classes.txt</code> (stability of every class) and <code>*-composables.txt</code> (skippable / restartable status of every Composable). Best perf-debugging tool you can ship to your team.</p>
+
+<h3>Common stability fixes</h3>
+<ul>
+  <li>Use <code>kotlinx.collections.immutable</code> — <code>ImmutableList&lt;T&gt;</code>, <code>PersistentList&lt;T&gt;</code> are <code>@Immutable</code>.</li>
+  <li>Make data class properties <code>val</code>, not <code>var</code>.</li>
+  <li>Annotate domain models <code>@Immutable</code>.</li>
+  <li>For interface parameters, mark them <code>@Stable</code> on the interface itself or replace with sealed classes.</li>
+</ul>
+
+<!-- =============== 10. KEYS =============== -->
+<h2 id="s10">10. <code>key()</code> and list <code>itemKey</code> — identity in lists</h2>
+
+<p>By default, Compose identifies items by <strong>position</strong> in the call tree. For lists where items can be added, removed, or reordered, you must give Compose a stable identity, or it'll associate state with the wrong item.</p>
+
+<pre><code>LazyColumn {
+    items(
+        items = users,
+        key = { user -&gt; user.id }              <span class="com">// stable identity</span>
+    ) { user -&gt;
+        UserRow(user)
+    }
+}
+
+<span class="com">// Inside a non-list Composable: key() block</span>
+users.forEach { user -&gt;
+    key(user.id) {                              <span class="com">// scoped identity</span>
+        UserRow(user)
+    }
+}</code></pre>
+
+<p>Symptoms of missing keys:</p>
+<ul>
+  <li>State stuck on the wrong item after add/remove (e.g., a checkbox state moves)</li>
+  <li>Janky animations that look like rebuilds rather than moves</li>
+  <li><code>rememberSaveable</code> values appearing on the wrong rows</li>
+</ul>
+
+<div class="callout warn"><strong>Don't:</strong> use the index as the key. That's the same as no key — defeats the whole purpose. Don't use the entire object either; equals must be cheap and identity-meaningful.</div>
+
+<!-- =============== 11. MODIFIERS =============== -->
+<h2 id="s11">11. Modifiers — order matters; <code>Modifier.Node</code> for performance</h2>
+
+<p>A <code>Modifier</code> is an immutable, ordered chain of behaviors applied to a Composable: padding, click, background, etc. <strong>Order is meaningful</strong> — each modifier wraps the next.</p>
+
+<pre><code><span class="com">// 16 dp padding, then background → padding outside the color</span>
+Box(Modifier.padding(<span class="num">16</span>.dp).background(Color.Red))
+
+<span class="com">// background, then padding → padding inside the color</span>
+Box(Modifier.background(Color.Red).padding(<span class="num">16</span>.dp))</code></pre>
+
+<h3>Common modifier reading order</h3>
+<ol>
+  <li>Size (<code>fillMaxWidth</code>, <code>size</code>, <code>height</code>) defines the constraints</li>
+  <li>Padding adds inset</li>
+  <li>Background paints behind contents</li>
+  <li>Border draws on top of background</li>
+  <li>Click areas use the modified bounds</li>
+</ol>
+
+<h3>Custom modifiers — use <code>Modifier.Node</code></h3>
+<pre><code><span class="com">// Modern (recommended) — Modifier.Node + ModifierNodeElement</span>
+<span class="kw">private class</span> MyHighlightNode : Modifier.Node(), DrawModifierNode {
+    <span class="kw">override fun</span> ContentDrawScope.draw() {
+        drawRect(Color.Yellow.copy(alpha = <span class="num">0.3f</span>))
+        drawContent()
+    }
+}
+
+<span class="kw">private data object</span> MyHighlightElement : ModifierNodeElement&lt;MyHighlightNode&gt;() {
+    <span class="kw">override fun</span> create() = MyHighlightNode()
+    <span class="kw">override fun</span> update(node: MyHighlightNode) {}
+}
+
+<span class="kw">fun</span> Modifier.highlight() = <span class="kw">this</span> <span class="kw">then</span> MyHighlightElement</code></pre>
+
+<p>Why <code>Modifier.Node</code> over the older <code>composed { }</code>:</p>
+<ul>
+  <li>Reusable across recompositions — fewer allocations</li>
+  <li>Doesn't trigger recomposition just because the modifier was rebuilt</li>
+  <li>Can hook into the layout, draw, focus, pointer-input phases via specialized interfaces (DrawModifierNode, LayoutModifierNode, etc.)</li>
+</ul>
+
+<div class="callout warn"><strong>Don't:</strong> use <code>composed { }</code> for new code. It's flagged as deprecated in newer Compose versions and creates an extra Composable per call site.</div>
+
+<!-- =============== 12. THREE PHASES =============== -->
+<h2 id="s12">12. The three phases — Composition, Layout, Drawing</h2>
+
+<p>Compose runs three phases per frame, top-down. Understanding which phase a State read happens in determines what gets invalidated when the State changes.</p>
+
+<table>
+  <thead><tr><th>Phase</th><th>What happens</th><th>State read here invalidates</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Composition</strong></td><td>Run @Composable functions, build the tree (slot table + LayoutNodes)</td><td>Composition + Layout + Drawing</td></tr>
+    <tr><td><strong>Layout</strong></td><td>Measure each node (with constraints from parent), then place children</td><td>Layout + Drawing</td></tr>
+    <tr><td><strong>Drawing</strong></td><td>Paint pixels into the buffer</td><td>Drawing only</td></tr>
+  </tbody>
+</table>
+
+<h3>Defer state reads to the latest possible phase</h3>
+<pre><code><span class="com">// Bad — reads scroll value in Composition phase → recomposes on every scroll pixel</span>
+Text(<span class="str">"Offset: ${scrollState.value}"</span>)
+
+<span class="com">// Good — reads in Layout phase via lambda → only relayouts, no recomposition</span>
+Box(Modifier.offset { IntOffset(<span class="num">0</span>, scrollState.value) })
+
+<span class="com">// Even better for transforms — reads in Drawing phase → only redraws</span>
+Box(Modifier.graphicsLayer { translationY = scrollState.value.toFloat() })</code></pre>
+
+<p>Modifiers that take a lambda (<code>Modifier.offset { }</code>, <code>Modifier.graphicsLayer { }</code>, <code>Modifier.drawBehind { }</code>) defer execution to a later phase. Reading State inside the lambda doesn't trigger recomposition — only the relevant later-phase invalidation.</p>
+
+<!-- =============== 13. CUSTOM LAYOUT =============== -->
+<h2 id="s13">13. Custom <code>Layout</code> and <code>SubcomposeLayout</code></h2>
+
+<p>For most cases, built-in containers (<code>Box</code>, <code>Row</code>, <code>Column</code>, <code>LazyColumn</code>) are enough. When you need custom measurement/placement, drop to <code>Layout</code>.</p>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> SpacedColumn(spacing: Dp, content: @Composable () -&gt; Unit) {
+    Layout(content = content) { measurables, constraints -&gt;
+        <span class="kw">val</span> placeables = measurables.map { it.measure(constraints) }
+        <span class="kw">val</span> spacingPx = spacing.roundToPx()
+        <span class="kw">val</span> totalH = placeables.sumOf { it.height } + spacingPx * (placeables.size - <span class="num">1</span>)
+        layout(constraints.maxWidth, totalH) {
+            <span class="kw">var</span> y = <span class="num">0</span>
+            placeables.forEach { it.placeRelative(<span class="num">0</span>, y); y += it.height + spacingPx }
+        }
+    }
+}</code></pre>
+
+<h3><code>SubcomposeLayout</code> — when you need measurement to influence composition</h3>
+<p>Used internally by <code>Scaffold</code>, <code>BoxWithConstraints</code>, <code>LazyColumn</code>. Lets you compose children based on measurement results from <em>other</em> children.</p>
+<pre><code>SubcomposeLayout { constraints -&gt;
+    <span class="kw">val</span> headerPlaceable = subcompose(<span class="str">"header"</span>) { Header() }
+        .first().measure(constraints)
+    <span class="kw">val</span> remaining = constraints.copy(maxHeight = constraints.maxHeight - headerPlaceable.height)
+    <span class="kw">val</span> bodyPlaceable = subcompose(<span class="str">"body"</span>) { Body() }
+        .first().measure(remaining)
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        headerPlaceable.placeRelative(<span class="num">0</span>, <span class="num">0</span>)
+        bodyPlaceable.placeRelative(<span class="num">0</span>, headerPlaceable.height)
+    }
+}</code></pre>
+
+<div class="callout warn"><strong>Don't:</strong> reach for <code>SubcomposeLayout</code> if a regular <code>Layout</code> works. SubcomposeLayout composes during measure, which disables intrinsics and adds significant cost.</div>
+
+<!-- =============== 14. COMPOSITIONLOCAL =============== -->
+<h2 id="s14">14. <code>CompositionLocal</code> — implicit values down the tree</h2>
+
+<p>A way to pass values implicitly through the Composable tree without threading them through every parameter. Built-in examples: <code>LocalContext</code>, <code>LocalDensity</code>, <code>LocalConfiguration</code>, <code>MaterialTheme.colorScheme</code>.</p>
+
+<pre><code><span class="kw">val</span> LocalAppUser = compositionLocalOf&lt;User&gt; { error(<span class="str">"No User provided"</span>) }
+
+<span class="anno">@Composable fun</span> App() {
+    <span class="kw">val</span> currentUser = vm.user.collectAsStateWithLifecycle().value
+    CompositionLocalProvider(LocalAppUser provides currentUser) {
+        Screen()
+    }
+}
+
+<span class="anno">@Composable fun</span> Avatar() {
+    <span class="kw">val</span> user = LocalAppUser.current      <span class="com">// implicit lookup</span>
+    Image(user.avatar, contentDescription = user.name)
+}</code></pre>
+
+<h3>Two flavors</h3>
+<ul>
+  <li><code>compositionLocalOf</code> — only direct readers recompose when the value changes (more granular)</li>
+  <li><code>staticCompositionLocalOf</code> — entire subtree recomposes on change. Cheaper at runtime if the value rarely changes (Theme, Density)</li>
+</ul>
+
+<table>
+  <thead><tr><th>Use CompositionLocal for</th><th>Don't use for</th></tr></thead>
+  <tbody>
+    <tr><td>Cross-cutting plumbing: theme, density, navigation controller, image loader</td><td>App-level domain state — use a ViewModel</td></tr>
+    <tr><td>Values needed deep but rarely</td><td>Values used by 90% of Composables — just pass as parameter</td></tr>
+    <tr><td>Hosting Java/legacy values that don't fit Compose state</td><td>"Avoiding boilerplate" — too much CompositionLocal makes data flow opaque</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 15. LISTS =============== -->
+<h2 id="s15">15. Lists — <code>LazyColumn</code> and friends</h2>
+
+<p>Lazy components only compose visible items + a small pre-fetch window. They handle thousands of items efficiently.</p>
+
+<pre><code>LazyColumn(
+    state = rememberLazyListState(),
+    contentPadding = PaddingValues(<span class="num">16</span>.dp),
+    verticalArrangement = Arrangement.spacedBy(<span class="num">8</span>.dp)
+) {
+    item { Header() }
+    items(
+        items = users,
+        key = { it.id },                       <span class="com">// stable identity (§10)</span>
+        contentType = { it.javaClass }          <span class="com">// improves view-recycling</span>
+    ) { user -&gt;
+        UserRow(user)
+    }
+    item { Footer() }
+}</code></pre>
+
+<h3>Performance rules for lists</h3>
+<ul>
+  <li>Always provide <code>key</code>. Always.</li>
+  <li>Provide <code>contentType</code> when items can have different shapes — Compose recycles by type.</li>
+  <li>Don't read <code>listState.firstVisibleItemIndex</code> in Composition unless wrapped in <code>derivedStateOf</code> (§8).</li>
+  <li>Use <code>animateItemPlacement()</code> on item Composables for free reorder animations.</li>
+  <li>Hoist heavy state outside the item Composable; the item function should be lightweight.</li>
+</ul>
+
+<h3>Other lazy containers</h3>
+<table>
+  <thead><tr><th>Container</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>LazyColumn</code> / <code>LazyRow</code></td><td>1D linear lists</td></tr>
+    <tr><td><code>LazyVerticalGrid</code> / <code>LazyHorizontalGrid</code></td><td>2D grids with rectangular cells</td></tr>
+    <tr><td><code>LazyVerticalStaggeredGrid</code></td><td>Pinterest-style irregular grids</td></tr>
+    <tr><td><code>HorizontalPager</code> / <code>VerticalPager</code></td><td>Page-snapping (Stories, onboarding)</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 16. ANIMATIONS =============== -->
+<h2 id="s16">16. Animations — high-level → low-level</h2>
+
+<table>
+  <thead><tr><th>API</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>animate*AsState</code> (<code>animateColorAsState</code>, <code>animateDpAsState</code>...)</td><td>Single-value animation; smooth interpolation when target changes</td></tr>
+    <tr><td><code>updateTransition</code></td><td>Coordinate multiple animated values driven by a single state</td></tr>
+    <tr><td><code>AnimatedVisibility</code></td><td>Enter/exit a Composable with built-in transition specs</td></tr>
+    <tr><td><code>AnimatedContent</code></td><td>Swap between two Composables with cross-fade-style transition</td></tr>
+    <tr><td><code>animateContentSize()</code></td><td>Animate size when content reflows</td></tr>
+    <tr><td><code>rememberInfiniteTransition</code></td><td>Looping animations (loading spinners, pulses)</td></tr>
+    <tr><td><code>Animatable</code></td><td>Imperative animation control (start/stop/snap from event handlers)</td></tr>
+    <tr><td><code>Modifier.graphicsLayer { }</code></td><td>GPU-accelerated transforms (rotation, scale, alpha) without recomposition</td></tr>
+  </tbody>
+</table>
+
+<pre><code><span class="com">// Single value — most common</span>
+<span class="kw">val</span> alpha <span class="kw">by</span> animateFloatAsState(<span class="kw">if</span> (visible) <span class="num">1f</span> <span class="kw">else</span> <span class="num">0f</span>)
+
+<span class="com">// Coordinated multi-value</span>
+<span class="kw">val</span> transition = updateTransition(state, label = <span class="str">"main"</span>)
+<span class="kw">val</span> color    <span class="kw">by</span> transition.animateColor { <span class="kw">if</span> (it == State.A) Red <span class="kw">else</span> Blue }
+<span class="kw">val</span> radius   <span class="kw">by</span> transition.animateDp    { <span class="kw">if</span> (it == State.A) <span class="num">12</span>.dp <span class="kw">else</span> <span class="num">36</span>.dp }
+
+<span class="com">// graphicsLayer — read State during DRAWING phase, no recomposition</span>
+Box(Modifier.graphicsLayer {
+    rotationZ = animatedAngle
+    alpha = animatedAlpha
+})</code></pre>
+
+<div class="callout"><strong>Performance trick:</strong> for any property that animates frequently (rotation, alpha, scale), prefer <code>graphicsLayer { }</code> over the equivalent modifier (<code>Modifier.rotate</code>, <code>Modifier.alpha</code>). The lambda runs in the drawing phase, so the animation skips composition AND layout.</div>
+
+<!-- =============== 17. THEMING =============== -->
+<h2 id="s17">17. Theming — Material 3, dynamic color, custom design systems</h2>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> AppTheme(content: @Composable () -&gt; Unit) {
+    <span class="kw">val</span> dark = isSystemInDarkTheme()
+    <span class="kw">val</span> colors = <span class="kw">when</span> {
+        Build.VERSION.SDK_INT &gt;= <span class="num">31</span> -&gt;             <span class="com">// Android 12+ dynamic color</span>
+            <span class="kw">if</span> (dark) dynamicDarkColorScheme(LocalContext.current)
+            <span class="kw">else</span> dynamicLightColorScheme(LocalContext.current)
+        dark -&gt; darkColorScheme()
+        <span class="kw">else</span> -&gt; lightColorScheme()
+    }
+    MaterialTheme(
+        colorScheme = colors,
+        typography = AppTypography,
+        shapes = AppShapes,
+        content = content
+    )
+}</code></pre>
+
+<h3>Custom design system on top of MaterialTheme</h3>
+<p>If you have brand-specific tokens beyond Material's color/typography/shape:</p>
+<pre><code><span class="kw">data class</span> AppColors(<span class="kw">val</span> brandRed: Color, <span class="kw">val</span> warningYellow: Color)
+<span class="kw">val</span> LocalAppColors = staticCompositionLocalOf&lt;AppColors&gt; { error(<span class="str">"No AppColors"</span>) }
+
+<span class="kw">object</span> AppTheme {
+    <span class="kw">val</span> colors: AppColors
+        <span class="anno">@Composable</span>
+        <span class="kw">get</span>() = LocalAppColors.current
+}
+
+<span class="anno">@Composable fun</span> Header() {
+    Text(<span class="str">"Hello"</span>, color = AppTheme.colors.brandRed)
+}</code></pre>
+
+<!-- =============== 18. NAVIGATION =============== -->
+<h2 id="s18">18. Navigation — type-safe routes (Nav 2.8+)</h2>
+
+<p>Compose Navigation 2.8+ uses Kotlin Serialization for type-safe destinations — pass data class objects, not strings.</p>
+
+<pre><code><span class="anno">@Serializable data object</span> Home
+<span class="anno">@Serializable data class</span> Profile(<span class="kw">val</span> userId: String, <span class="kw">val</span> tab: Int = <span class="num">0</span>)
+
+NavHost(navController, startDestination = Home) {
+    composable&lt;Home&gt; { HomeScreen(onProfileClick = { navController.navigate(Profile(<span class="str">"42"</span>)) }) }
+    composable&lt;Profile&gt; { entry -&gt;
+        <span class="kw">val</span> args: Profile = entry.toRoute()
+        ProfileScreen(args.userId, args.tab)
+    }
+}
+
+navController.navigate(Profile(userId = <span class="str">"42"</span>, tab = <span class="num">1</span>))</code></pre>
+
+<h3>Sharing a ViewModel between screens (nested graph)</h3>
+<pre><code>navigation&lt;CheckoutGraph&gt;(startDestination = CartScreen) {
+    composable&lt;CartScreen&gt; { entry -&gt;
+        <span class="kw">val</span> parent = remember(entry) {
+            navController.getBackStackEntry&lt;CheckoutGraph&gt;()
+        }
+        <span class="kw">val</span> sharedVm: CheckoutViewModel = hiltViewModel(parent)
+        ...
+    }
+    composable&lt;PaymentScreen&gt; { entry -&gt;
+        <span class="kw">val</span> parent = remember(entry) {
+            navController.getBackStackEntry&lt;CheckoutGraph&gt;()
+        }
+        <span class="kw">val</span> sharedVm: CheckoutViewModel = hiltViewModel(parent)
+        ...
+    }
+}</code></pre>
+
+<h3>Deep links</h3>
+<pre><code>composable&lt;Profile&gt;(
+    deepLinks = listOf(navDeepLink&lt;Profile&gt;(basePath = <span class="str">"https://app.com/u"</span>))
+) { ... }</code></pre>
+
+<!-- =============== 19. WINDOW INSETS =============== -->
+<h2 id="s19">19. Edge-to-edge &amp; <code>WindowInsets</code></h2>
+
+<p>Edge-to-edge = your app draws under the system bars (status, navigation, IME, cutout). Mandatory in Android 15+ for apps targeting SDK 35.</p>
+
+<pre><code><span class="com">// In Activity</span>
+<span class="kw">override fun</span> onCreate(b: Bundle?) {
+    <span class="kw">super</span>.onCreate(b)
+    enableEdgeToEdge()                   <span class="com">// from androidx.activity:activity</span>
+    setContent { App() }
+}
+
+<span class="com">// In Compose — apply only the insets you need</span>
+Scaffold(
+    contentWindowInsets = WindowInsets.safeDrawing
+) { padding -&gt;
+    Column(Modifier.padding(padding)) { ... }
+}
+
+<span class="com">// Or per-surface</span>
+Surface(Modifier.statusBarsPadding()) { TopBar() }
+Surface(Modifier.navigationBarsPadding()) { BottomBar() }
+TextField(Modifier.imePadding(), ...)</code></pre>
+
+<table>
+  <thead><tr><th>Inset</th><th>Covers</th></tr></thead>
+  <tbody>
+    <tr><td><code>statusBars</code></td><td>Top status bar (clock, battery)</td></tr>
+    <tr><td><code>navigationBars</code></td><td>Bottom 3-button or gesture bar</td></tr>
+    <tr><td><code>ime</code></td><td>Keyboard area when shown</td></tr>
+    <tr><td><code>displayCutout</code></td><td>Notch / camera cutout</td></tr>
+    <tr><td><code>safeDrawing</code></td><td>Status + nav + IME + cutout (composite)</td></tr>
+    <tr><td><code>safeContent</code></td><td>safeDrawing minus IME</td></tr>
+    <tr><td><code>safeGestures</code></td><td>Avoid system gesture-only zones (back, home swipes)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn"><strong>Common pitfall:</strong> applying <code>safeDrawing</code> at the very root when you have a colored TopAppBar leaves an unwanted gap above the bar. Apply insets per surface instead — let the TopAppBar use <code>statusBarsPadding</code> internally; let the body use what it needs.</div>
+
+<!-- =============== 20. INTEROP =============== -->
+<h2 id="s20">20. Interop — <code>AndroidView</code> and <code>ComposeView</code></h2>
+
+<h3>Hosting a View inside Compose</h3>
+<pre><code>AndroidView(
+    factory = { ctx -&gt;
+        MapView(ctx).apply {
+            onCreate(<span class="kw">null</span>)
+            getMapAsync { map -&gt; ... }
+        }
+    },
+    update = { mapView -&gt;
+        <span class="com">// Re-runs on recomposition; receive new state</span>
+        mapView.invalidate()
+    }
+)</code></pre>
+
+<h3>Hosting Compose inside XML</h3>
+<pre><code>&lt;androidx.compose.ui.platform.ComposeView
+    android:id=<span class="str">"@+id/compose_root"</span>
+    android:layout_width=<span class="str">"match_parent"</span>
+    android:layout_height=<span class="str">"wrap_content"</span> /&gt;</code></pre>
+<pre><code>binding.composeRoot.setContent { MyComposable() }</code></pre>
+
+<table>
+  <thead><tr><th></th><th>Use when</th></tr></thead>
+  <tbody>
+    <tr><td><code>AndroidView</code></td><td>Wrapping legacy custom Views, Maps SDK, AdView, third-party Views without Compose support</td></tr>
+    <tr><td><code>ComposeView</code></td><td>Migrating an XML-based screen incrementally — drop a Composable into a corner</td></tr>
+    <tr><td>Pure Compose</td><td>Default for new screens. Reach for interop only when needed.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Tip:</strong> <code>AndroidView</code> is heavy compared to native Composables. The View lifecycle is tied to composition lifecycle; mount/unmount can churn. Pass a <code>key</code> argument that's stable across recompositions.</div>
+
+<!-- =============== 21. COROUTINES + FLOW INTEGRATION =============== -->
+<h2 id="s21">21. Coroutines &amp; Flow integration</h2>
+
+<h3>Collect Flow safely (lifecycle-aware)</h3>
+<pre><code><span class="anno">@Composable fun</span> Screen(vm: MyViewModel = hiltViewModel()) {
+    <span class="kw">val</span> state <span class="kw">by</span> vm.uiState.collectAsStateWithLifecycle()    <span class="com">// pauses in background</span>
+    Render(state)
+}</code></pre>
+
+<table>
+  <thead><tr><th>API</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td><code>collectAsState()</code></td><td>Collects regardless of lifecycle — drains battery in background. Avoid in 2026.</td></tr>
+    <tr><td><code>collectAsStateWithLifecycle()</code></td><td>Pauses collection when lifecycle is below STARTED. <strong>Default in 2026.</strong></td></tr>
+    <tr><td><code>livedata.observeAsState()</code></td><td>For LiveData — already lifecycle-aware via Compose's lifecycle integration.</td></tr>
+  </tbody>
+</table>
+
+<h3>Convert async source to State — <code>produceState</code></h3>
+<pre><code><span class="kw">val</span> user: State&lt;User?&gt; = produceState&lt;User?&gt;(initialValue = <span class="kw">null</span>, key1 = userId) {
+    value = api.getUser(userId)
+    <span class="com">// Coroutine cancelled on Composable leaves composition or userId change</span>
+}</code></pre>
+
+<h3>Launch from event handlers — <code>rememberCoroutineScope</code></h3>
+<pre><code><span class="kw">val</span> scope = rememberCoroutineScope()
+Button(onClick = { scope.launch { vm.refresh() } }) { Text(<span class="str">"Refresh"</span>) }</code></pre>
+
+<!-- =============== 22. TESTING =============== -->
+<h2 id="s22">22. Testing — fast, deterministic Compose tests</h2>
+
+<pre><code>@get:Rule
+<span class="kw">val</span> compose = createComposeRule()                <span class="com">// for non-Hilt</span>
+<span class="com">// or createAndroidComposeRule&lt;ActivityT&gt;()        for AndroidTest with Activity</span>
+
+<span class="kw">@Test fun</span> counter_incrementsOnClick() {
+    compose.setContent { CounterScreen() }
+    compose.onNodeWithText(<span class="str">"Clicks: 0"</span>).assertIsDisplayed()
+    compose.onNodeWithText(<span class="str">"Click me"</span>).performClick()
+    compose.onNodeWithText(<span class="str">"Clicks: 1"</span>).assertIsDisplayed()
+}</code></pre>
+
+<table>
+  <thead><tr><th>Helper</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>onNodeWithText("X")</code></td><td>Find by visible text</td></tr>
+    <tr><td><code>onNodeWithTag("submit")</code></td><td>Find by <code>Modifier.testTag(...)</code> — robust across i18n</td></tr>
+    <tr><td><code>onNodeWithContentDescription(...)</code></td><td>Find by accessibility description</td></tr>
+    <tr><td><code>performClick()</code> / <code>performTextInput(...)</code> / <code>performScrollTo(...)</code></td><td>Drive interactions</td></tr>
+    <tr><td><code>assertIsDisplayed()</code> / <code>assertIsEnabled()</code> / <code>assertTextEquals(...)</code></td><td>Assertions</td></tr>
+    <tr><td><code>compose.waitForIdle()</code></td><td>Wait for async work to settle</td></tr>
+    <tr><td><code>compose.mainClock.autoAdvance = false; mainClock.advanceTimeBy(ms)</code></td><td>Control time for animation tests</td></tr>
+  </tbody>
+</table>
+
+<h3>Screenshot testing — Paparazzi / Roborazzi</h3>
+<p>Render Composables to PNG without an emulator; diff against golden images. Catches visual regressions instantly. Both libraries integrate cleanly with the design-system testing flow.</p>
+
+<!-- =============== 23. ACCESSIBILITY =============== -->
+<h2 id="s23">23. Accessibility — TalkBack, semantics, touch targets</h2>
+
+<p>Compose builds a semantics tree separate from the visual tree. TalkBack reads it. Add semantic info via <code>contentDescription</code>, click labels, and the <code>semantics { }</code> modifier.</p>
+
+<pre><code><span class="com">// Decorative image — explicitly null content description</span>
+Image(painterResource(R.drawable.bg), contentDescription = <span class="kw">null</span>)
+
+<span class="com">// Meaningful image</span>
+Image(painterResource(R.drawable.profile), contentDescription = <span class="str">"Profile picture"</span>)
+
+<span class="com">// Custom click — TalkBack announces "Double-tap to like"</span>
+Box(Modifier.clickable(onClickLabel = <span class="str">"Like this post"</span>) { vm.like() })
+
+<span class="com">// Group descendants into one semantic node</span>
+Row(Modifier.semantics(mergeDescendants = <span class="kw">true</span>) {}) {
+    Icon(...)
+    Text(<span class="str">"Settings"</span>)
+}
+
+<span class="com">// Custom semantic state for a custom slider</span>
+Modifier.semantics {
+    contentDescription = <span class="str">"Volume"</span>
+    progressBarRangeInfo = ProgressBarRangeInfo(<span class="num">0.7f</span>, <span class="num">0f</span>..<span class="num">1f</span>)
+    role = Role.Slider
+}</code></pre>
+
+<table>
+  <thead><tr><th>Rule</th><th>Threshold</th></tr></thead>
+  <tbody>
+    <tr><td>Touch target size</td><td>≥ 48 dp (Material guideline; Accessibility Scanner flags smaller)</td></tr>
+    <tr><td>Color contrast (normal text)</td><td>4.5 : 1</td></tr>
+    <tr><td>Color contrast (large text)</td><td>3 : 1</td></tr>
+    <tr><td>Don't rely on color alone</td><td>Always pair color cues with icons or text</td></tr>
+  </tbody>
+</table>
+
+<!-- =============== 24. PERFORMANCE =============== -->
+<h2 id="s24">24. Performance — finding and fixing recompositions</h2>
+
+<h3>How to find offending recompositions</h3>
+<ol>
+  <li><strong>Layout Inspector → "Show recomposition counts"</strong> — see counts per Composable as you interact.</li>
+  <li><strong>Compose Compiler metrics report</strong> (§9) — per-Composable skippable / restartable info; per-class stability.</li>
+  <li><strong>Macrobenchmark + FrameTimingMetric</strong> — measure end-to-end frame timing on a release build.</li>
+  <li><strong>Perfetto trace</strong> — low-level system trace; see scheduling and main-thread work.</li>
+</ol>
+
+<h3>Common fixes</h3>
+<ul>
+  <li><strong>Stable parameters</strong>: replace <code>List&lt;T&gt;</code> with <code>ImmutableList&lt;T&gt;</code> from kotlinx.collections.immutable.</li>
+  <li><strong>Defer State reads to later phases</strong>: use lambda-modifiers (<code>Modifier.offset { }</code>, <code>graphicsLayer { }</code>) instead of value-modifiers.</li>
+  <li><strong>Wrap derived values</strong>: <code>derivedStateOf</code> for computed booleans on noisy inputs.</li>
+  <li><strong>Cache lambdas</strong>: in scroll callbacks, <code>val onClick = remember { { vm.click() } }</code> avoids new Function instances per frame.</li>
+  <li><strong>Stable keys for lists</strong>: never index, always entity ID.</li>
+  <li><strong>Ship a Baseline Profile</strong>: pre-AOT-compile your hot paths. Compose-heavy apps see 20-40% cold-start improvement.</li>
+  <li><strong>Use primitive State</strong>: <code>mutableIntStateOf</code> over <code>mutableStateOf(0)</code> — avoids boxing.</li>
+</ul>
+
+<div class="callout warn"><strong>Don't profile debug builds.</strong> Compose generates lots of extra debug-only allocations. Always profile a release build with R8 + Baseline Profile installed.</div>
+
+<!-- =============== 25. DO'S AND DON'TS =============== -->
+<h2 id="s25">25. Do's and Don'ts — comprehensive checklist</h2>
+
+<div class="two-col">
+  <div class="col-card good"><strong>DO</strong>
+    <ul>
+      <li>Make UI a function of state. UI = f(state).</li>
+      <li>Hoist state to the lowest common ancestor of Composables that need it.</li>
+      <li>Use <code>collectAsStateWithLifecycle</code> for Flow in Compose.</li>
+      <li>Provide stable keys for every list.</li>
+      <li>Mark domain models <code>@Immutable</code>.</li>
+      <li>Use <code>derivedStateOf</code> for noisy inputs producing rare boolean outputs.</li>
+      <li>Use <code>graphicsLayer { }</code> lambda for animated transforms.</li>
+      <li>Use <code>Modifier.testTag</code> for stable test selectors.</li>
+      <li>Run release build + Baseline Profile when measuring perf.</li>
+      <li>Provide <code>contentDescription</code> for meaningful images; <code>null</code> for decorative.</li>
+      <li>Use <code>rememberSaveable</code> for UI state that must survive process death.</li>
+      <li>Pair side effects with the right effect API (<code>LaunchedEffect</code>, <code>DisposableEffect</code>).</li>
+    </ul>
+  </div>
+  <div class="col-card bad"><strong>DON'T</strong>
+    <ul>
+      <li>Mutate plain <code>var</code> from inside a Composable expecting recomposition.</li>
+      <li>Run network calls or I/O directly in the Composable body.</li>
+      <li>Use <code>collectAsState()</code> in production — wastes battery in background.</li>
+      <li>Use the index as a list key.</li>
+      <li>Call <code>LaunchedEffect</code> from an <code>onClick</code>.</li>
+      <li>Forget <code>remember</code> around <code>derivedStateOf</code> / <code>mutableStateOf</code>.</li>
+      <li>Pass mutable <code>List&lt;T&gt;</code> to Composables and expect skipping.</li>
+      <li>Read <code>scrollState.value</code> in Composition without <code>derivedStateOf</code>.</li>
+      <li>Use <code>SubcomposeLayout</code> when a regular <code>Layout</code> works.</li>
+      <li>Mass-apply <code>safeDrawing</code> at the root over a colored TopAppBar.</li>
+      <li>Profile debug builds for performance work.</li>
+      <li>Ignore the Compose Compiler metrics report — it's the truth.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =============== 26. COMPOSE VS VIEWS =============== -->
+<h2 id="s26">26. Compose vs XML/Views — when to pick which</h2>
+
+<table>
+  <thead><tr><th></th><th>Compose (2026)</th><th>Views/XML</th></tr></thead>
+  <tbody>
+    <tr><td>Code volume per typical screen</td><td>~50% less</td><td>baseline</td></tr>
+    <tr><td>State sync</td><td>Automatic (reactive)</td><td>Manual (mutate then notify)</td></tr>
+    <tr><td>Custom layout</td><td>~tens of lines (custom <code>Layout</code>)</td><td>Hundreds (custom <code>ViewGroup</code>)</td></tr>
+    <tr><td>Animations</td><td>First-class (<code>animate*AsState</code>, <code>graphicsLayer</code>)</td><td>Animator + ObjectAnimator</td></tr>
+    <tr><td>Live preview</td><td><code>@Preview</code> in Studio</td><td>Layout Inspector after launch</td></tr>
+    <tr><td>Maturity</td><td>Solid in 2026; few niche gaps (advanced gestures, complex map embeds)</td><td>15+ years</td></tr>
+    <tr><td>Cold start cost</td><td>Slightly more without Baseline Profile; closes the gap with one</td><td>Lighter at startup</td></tr>
+    <tr><td>Interop</td><td>Bidirectional via <code>AndroidView</code> / <code>ComposeView</code></td><td>n/a</td></tr>
+    <tr><td>Hiring market (2026)</td><td>Default for new Android positions</td><td>Legacy maintenance roles</td></tr>
+  </tbody>
+</table>
+
+<h3>When to still pick Views</h3>
+<ul>
+  <li>100% Java codebase with no Kotlin migration plan</li>
+  <li>Existing XML-based screens that work — don't refactor for refactor's sake</li>
+  <li>Heavy dependence on third-party Views without Compose wrappers (some IAP SDKs, ads)</li>
+  <li>Team has zero Compose experience and a launch in 4 weeks</li>
+</ul>
+
+<h3>When to definitely pick Compose</h3>
+<ul>
+  <li>Any new screen in any modern Android codebase</li>
+  <li>Anything with complex dynamic content (chat, feed, animated UI)</li>
+  <li>Custom UI that would need <code>ViewGroup</code> in the View world</li>
+  <li>Apps targeting Compose Multiplatform (KMP-shared UI)</li>
+</ul>
+
+<!-- =============== 27. ONE-PAGE RECALL =============== -->
+<h2 id="s27">27. One-page recall card</h2>
+
+<div class="recall-card">
+  <h3>The 30-second mental model</h3>
+  <p>Compose = declarative UI. UI = f(state). Compose Compiler rewrites every <code>@Composable</code> to inject a Composer + change-tracking bitmask + restart group. Composer maintains the slot table. Snapshot system tracks State reads per RecomposeScope. State change → invalidates the smallest enclosing scope → next frame, that scope re-runs.</p>
+
+  <h3>State</h3>
+  <ul>
+    <li><code>mutableStateOf</code>, <code>mutableIntStateOf</code> for primitives</li>
+    <li><code>remember { }</code> for in-composition; <code>rememberSaveable { }</code> for process death</li>
+    <li><code>derivedStateOf { }</code> + <code>remember</code> for noisy inputs → rare output</li>
+    <li>State hoisting: pass <code>(value, onChange)</code>, hoist to lowest common ancestor</li>
+  </ul>
+
+  <h3>Side effects</h3>
+  <ul>
+    <li><code>LaunchedEffect(key)</code> — coroutine, restart on key change</li>
+    <li><code>DisposableEffect(key)</code> — register/unregister with <code>onDispose</code></li>
+    <li><code>SideEffect</code> — publish to non-Compose code</li>
+    <li><code>rememberCoroutineScope()</code> — launch from event handlers</li>
+    <li><code>produceState</code> — async source → State</li>
+    <li><code>rememberUpdatedState</code> — capture latest in long-running effect without restart</li>
+  </ul>
+
+  <h3>Performance</h3>
+  <ul>
+    <li>Stable parameters → skipping; mark with <code>@Immutable</code></li>
+    <li><code>ImmutableList&lt;T&gt;</code> over <code>List&lt;T&gt;</code></li>
+    <li>Defer State reads to Layout/Drawing via lambda-modifiers</li>
+    <li><code>graphicsLayer { }</code> for animated transforms</li>
+    <li>Stable keys in lists (entity ID, never index)</li>
+    <li>Compose Compiler metrics report = ground truth</li>
+    <li>Baseline Profile for cold start</li>
+  </ul>
+
+  <h3>Internals (the engine)</h3>
+  <ul>
+    <li>Compiler injects <code>Composer</code> + <code>$changed</code> bitmask</li>
+    <li>Body wrapped in <code>startRestartGroup</code> / <code>endRestartGroup</code> + <code>updateScope</code></li>
+    <li>Slot table = flat gap-buffer array of all groups, parameters, remembered values</li>
+    <li>Positional memoization = <code>remember</code> uses call-site position as the key</li>
+    <li>Snapshot system = MVCC; read tracking via thread-local SnapshotObserver</li>
+    <li>RecomposeScope = smallest re-runnable unit; State change invalidates the scope that read it</li>
+    <li>Recomposer = singleton coroutine on AndroidUiDispatcher; batches per frame</li>
+  </ul>
+
+  <h3>Avoid</h3>
+  <ul>
+    <li><code>collectAsState()</code> (use lifecycle variant)</li>
+    <li>Index as list key</li>
+    <li>Plain <code>var</code> for UI state</li>
+    <li>Side effects in Composable body</li>
+    <li><code>LaunchedEffect</code> inside <code>onClick</code></li>
+    <li>Profiling debug builds</li>
+    <li>SubcomposeLayout when Layout works</li>
+    <li>Mutable <code>List&lt;T&gt;</code> as Composable parameter</li>
+  </ul>
+</div>
+
+<!-- =============== END =============== -->
+<section style="margin-top: 36px; text-align: center; padding: 20px;
+                background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Read end-to-end for understanding · skim §25 (Do's and Don'ts) and §27 (recall card) the night before any Android interview.
+    Pair with the <strong>Top 210 Android Interview Questions</strong> guide and the <strong>Mobile System Design Playbook</strong> for full coverage.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'compose-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')?.innerText || pre.innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    pre.appendChild(btn);
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('h2[id]').forEach(h2 => {
+      let next = h2.nextElementSibling;
+      const sectionEls = [h2];
+      while (next && next.tagName !== 'H2') { sectionEls.push(next); next = next.nextElementSibling; }
+      const text = sectionEls.map(e => e.innerText).join(' ').toLowerCase();
+      const show = q === '' || text.includes(q);
+      sectionEls.forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); searchInput.focus(); }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+})();
+</script>
+</body>
+</html>
