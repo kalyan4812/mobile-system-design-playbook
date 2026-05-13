@@ -480,6 +480,299 @@ NameInput(name, onNameChange = { name = it.trim() })</code></pre>
 
 <div class="callout good"><strong>Takeaway:</strong> Compose is a small, elegant runtime — a slot table, a Composer, and a snapshot system. Once you understand these three, "advanced" Compose stops feeling mysterious. Reading the kotlinx Compose source becomes routine, not intimidating.</div>
 
+<!-- =============== COMPOSITION DEEP DIVE =============== -->
+<h2 id="scomp-deep">★ Composition vs Recomposition — what they mean, how Google built it, how to skip work</h2>
+
+<p>People throw "composition" and "recomposition" around like the same thing. They're not. Understanding the difference unlocks performance work and impresses interviewers.</p>
+
+<h3>The vocabulary (clear definitions)</h3>
+
+<table>
+  <thead><tr><th>Term</th><th>What it means</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Composition (the noun)</strong></td><td>The in-memory representation of your UI tree at a moment in time. It's a data structure — specifically, a slot table — that records which Composables ran with which parameters, what they <code>remember</code>'d, and how they nest.</td></tr>
+    <tr><td><strong>Composition (the verb / "composing")</strong></td><td>The act of running a Composable function for the <em>first time</em>. Adds new entries to the slot table.</td></tr>
+    <tr><td><strong>Recomposition</strong></td><td>The act of running a Composable function <em>again</em> with new inputs. Updates existing entries in the slot table at the same positions.</td></tr>
+    <tr><td><strong>Initial composition</strong></td><td>The first composition for a given scope — happens once when it enters the tree.</td></tr>
+    <tr><td><strong>Skipping</strong></td><td>Compose decides "all inputs unchanged AND stable, no need to re-run the body" and advances the slot table pointer past this Composable's entries without executing.</td></tr>
+    <tr><td><strong>RecomposeScope</strong></td><td>The smallest unit Compose can re-run independently. By default, every restartable @Composable function creates one.</td></tr>
+  </tbody>
+</table>
+
+<p>So: a Composable is <strong>composed once</strong> when it first appears, and <strong>recomposed many times</strong> as state changes. Both go through the same compiler-generated code path — the difference is whether the slot table already has entries at this position.</p>
+
+<h3>How Google built this — the inheritance from existing computer science</h3>
+
+<p>Compose isn't magic from outer space. Every piece of it has roots in older, well-understood technology. Google's contribution was integrating these proven ideas into a coherent UI framework with first-class Kotlin compiler support — not invented-here. Here's the genealogy:</p>
+
+<table>
+  <thead><tr><th>Compose concept</th><th>Where it came from</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Slot table (gap buffer array)</strong></td><td>Text editors since the 1970s. Emacs uses gap buffers for the same insert/delete-in-the-middle efficiency reason. Compose stores its tree as a flat array; the "gap" lets it shift entries when the tree mutates.</td></tr>
+    <tr><td><strong>Positional memoization</strong></td><td>Functional programming + React's reconciliation idea. React diffs a virtual DOM tree; Compose tracks position in a flat slot table — same goal (identify "this element didn't move"), different data structure.</td></tr>
+    <tr><td><strong>Snapshot system (MVCC)</strong></td><td>Multi-Version Concurrency Control from databases since the 1980s — Postgres, Oracle, etc. use MVCC for "consistent reads while writers are mutating." Compose uses the exact same idea for State, so composition can read state on the UI thread while another coroutine mutates it.</td></tr>
+    <tr><td><strong>Compiler plugin / IR transformation</strong></td><td>Same Kotlin IR (Intermediate Representation) pipeline that <code>suspend</code> functions go through. Compose Compiler is essentially "suspend-style code transformation, but for UI state." The same Kotlin compiler team that built suspend built Compose Compiler.</td></tr>
+    <tr><td><strong>State observation (snapshot reads)</strong></td><td>MobX, Vue's reactivity system, RxSwift Observables, Knockout.js. Same idea: track which code reads which state by intercepting the read.</td></tr>
+    <tr><td><strong>Modifier chain (decorator pattern)</strong></td><td>Gang of Four Decorator pattern (1994). Identical structurally to OkHttp's interceptor chain, Servlet filters, middleware in any web framework.</td></tr>
+    <tr><td><strong>Composer (state machine)</strong></td><td>Coroutines' Continuation pattern — both are state-machine-driven control flow. Calls like <code>startRestartGroup</code> / <code>endRestartGroup</code> mirror coroutines' <code>$label</code> + <code>resumeWith</code>.</td></tr>
+    <tr><td><strong>Recomposer (frame batching)</strong></td><td>Choreographer + VSYNC, which Android has had since API 16. Compose hooks into Choreographer's frame callbacks — when a state change happens, the Recomposer batches all invalidations and applies them at the next frame boundary.</td></tr>
+    <tr><td><strong>Stability inference</strong></td><td>Type system theory — similar in spirit to Rust's borrow checker reasoning about immutability and aliasing.</td></tr>
+    <tr><td><strong>Single-shot execution model</strong></td><td>React's "render is just a function" idea (2013). Compose pushed it further by making the function literally re-runnable at the granularity of a RecomposeScope.</td></tr>
+  </tbody>
+</table>
+
+<h3>The clever choice — flat slot table vs virtual DOM tree</h3>
+
+<p>The non-obvious decision: Compose uses a <strong>flat slot table</strong> instead of a virtual DOM tree like React.</p>
+
+<ul>
+  <li><strong>React approach</strong>: each render builds a new tree of plain objects, then diffs against the previous tree. Allocation per render + tree-diff cost.</li>
+  <li><strong>Compose approach</strong>: a single flat array (gap buffer) where each slot is a <code>(key, value)</code> pair. Recomposition walks the array and updates in place. Zero allocation per recomposition. Cache-friendly memory access.</li>
+</ul>
+
+<p>Trade-off: Compose can't ask "what would this UI look like with totally new state?" without actually running the code. React can compute "next tree" without committing it. For mobile UI, the Compose trade-off is the right one — way faster on memory-constrained devices.</p>
+
+<h3>What's actually inside the slot table for a simple Composable</h3>
+
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Counter() {
+    <span class="kw">var</span> count <span class="kw">by</span> remember { mutableStateOf(<span class="num">0</span>) }
+    Text(<span class="str">"Clicks: $count"</span>)
+    Button(onClick = { count++ }) { Text(<span class="str">"+"</span>) }
+}</code></pre>
+
+<p>The slot table contains roughly:</p>
+
+<div class="diagram">[restart-group: Counter]
+  [remember-group: count]
+    [State&lt;Int&gt;(0)]
+  [restart-group: Text]
+    [parameter: "Clicks: 0"]
+    [LayoutNode(text = ...)]
+  [restart-group: Button]
+    [parameter: lambda#1]
+    [LayoutNode(button = ...)]
+    [restart-group: Text]
+      [parameter: "+"]
+      [LayoutNode(text = ...)]
+[end-group]</div>
+
+<p>Each entry has a position (index in the array). When recomposition happens, the Composer walks the table from the start of the affected RecomposeScope. If the next entry's parameters match what's stored, it skips. Otherwise it updates in place. Most of recomposition is just walking past entries that haven't changed.</p>
+
+<h3>What "smart recomposition" actually means (three optimizations combined)</h3>
+
+<ol>
+  <li><strong>Targeted invalidation</strong> — when state changes, only the smallest enclosing RecomposeScope that read it gets queued for re-execution. Other scopes don't know anything happened.</li>
+  <li><strong>Stability check at function entry</strong> — generated code at the top of every restartable Composable checks the <code>$changed</code> bitmask. If all params are unchanged AND stable, the body is skipped entirely.</li>
+  <li><strong>Lambda memoization</strong> — the Compose Compiler caches lambdas with stable captures so child Composables receive the same lambda reference and stay skippable.</li>
+</ol>
+
+<p>Together: a feed with 100 items where only item #5's data changed re-runs only item #5's restart group. Items 1-4 and 6-100 are skipped — the slot-table walker advances past their entries without execution. <em>That's the whole performance story in one paragraph.</em></p>
+
+<h3>8 common causes of unnecessary recompositions — with code fixes</h3>
+
+<p>This is where Compose performance interviews drill. Each pattern: why it happens + the fix.</p>
+
+<h4>1. Reading the whole UiState in a parent Composable</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Header(vm: MyViewModel) {
+    <span class="kw">val</span> state <span class="kw">by</span> vm.uiState.collectAsStateWithLifecycle()
+    Text(<span class="str">"Welcome ${state.userName}"</span>)        <span class="com">// recomposes on EVERY field change</span>
+    LotsOfOtherStuff(state)                  <span class="com">// also recomposes on every field change</span>
+}</code></pre>
+
+<p><strong>Why:</strong> <code>Header</code> reads the whole <code>state</code> object, so it recomposes whenever any field of <code>state</code> changes — even unrelated ones like scroll position.</p>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Header(vm: MyViewModel) {
+    <span class="kw">val</span> userName <span class="kw">by</span> remember(vm) {
+        derivedStateOf { vm.uiState.value.userName }
+    }
+    Text(<span class="str">"Welcome $userName"</span>)              <span class="com">// recomposes ONLY when userName changes</span>
+}
+
+<span class="com">// Or — better — expose individual flows from VM:</span>
+<span class="kw">val</span> userName: StateFlow&lt;String&gt; = uiState.map { it.userName }.stateIn(...)</code></pre>
+
+<h4>2. Inline lambdas creating new instances per recomposition</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Parent(items: List&lt;Item&gt;) {
+    LazyColumn {
+        items(items) { item -&gt;
+            ItemRow(item, onClick = { handleClick(item.id) })   <span class="com">// new lambda per recomp</span>
+        }
+    }
+}</code></pre>
+
+<p><strong>Why:</strong> The lambda <code>{ handleClick(item.id) }</code> captures <code>item</code> — a different instance per row. Each recomposition creates a new lambda; ItemRow sees "different" callback and can't skip.</p>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Parent(items: List&lt;Item&gt;, onClick: (String) -&gt; Unit) {
+    LazyColumn {
+        items(items, key = { it.id }) { item -&gt;
+            ItemRow(item, id = item.id, onClick = onClick)      <span class="com">// stable lambda</span>
+        }
+    }
+}
+
+<span class="com">// In ItemRow:</span>
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> ItemRow(item: Item, id: String, onClick: (String) -&gt; Unit) {
+    Row(Modifier.clickable { onClick(id) }) { ... }             <span class="com">// click closure inline is OK</span>
+}                                                                <span class="com">// because clickable's modifier handles it</span></code></pre>
+
+<h4>3. Unstable list / collection parameters</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> UserList(users: List&lt;User&gt;) { ... }
+<span class="com">// kotlin.collections.List is UNSTABLE (could be MutableList).</span>
+<span class="com">// UserList always recomposes when its parent does, even if users hasn't changed.</span></code></pre>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="com">// Add: implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.7")</span>
+
+<span class="anno">@Composable</span>
+<span class="kw">fun</span> UserList(users: ImmutableList&lt;User&gt;) { ... }
+<span class="com">// ImmutableList is annotated @Immutable. UserList becomes skippable.</span>
+
+<span class="com">// In ViewModel, expose as ImmutableList:</span>
+<span class="kw">val</span> users: StateFlow&lt;ImmutableList&lt;User&gt;&gt; = userFlow.map { it.toImmutableList() }
+    .stateIn(scope, WhileSubscribed(<span class="num">5_000</span>), persistentListOf())</code></pre>
+
+<h4>4. Reading scroll position in the Composition phase</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Screen(listState: LazyListState) {
+    <span class="kw">val</span> position = listState.firstVisibleItemIndex     <span class="com">// changes every scroll tick</span>
+    Text(<span class="str">"Item: $position"</span>)                            <span class="com">// recomposes every scroll pixel</span>
+    BigList(listState)
+}</code></pre>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> Screen(listState: LazyListState) {
+    <span class="kw">val</span> showHeader <span class="kw">by</span> remember {
+        derivedStateOf { listState.firstVisibleItemIndex &gt; <span class="num">5</span> }
+    }
+    AnimatedVisibility(showHeader) { Header() }              <span class="com">// recomposes only on threshold flip</span>
+    BigList(listState)
+}</code></pre>
+
+<h4>5. Passing <code>State&lt;T&gt;</code> instead of <code>T</code></h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> NameDisplay(name: State&lt;String&gt;) {
+    Text(name.value)                          <span class="com">// reads inside</span>
+}</code></pre>
+
+<p><strong>Why:</strong> The caller passes the same State reference; the child reads <code>.value</code> inside. Now the child's reads invalidate this scope on every state change. By passing the State down, you've moved the read from a leaf to a parent — inverting what skipping wants.</p>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> NameDisplay(name: String) {
+    Text(name)                                <span class="com">// receives plain value</span>
+}
+
+<span class="com">// Caller reads State and passes value:</span>
+<span class="kw">val</span> name <span class="kw">by</span> vm.name.collectAsStateWithLifecycle()
+NameDisplay(name)</code></pre>
+
+<h4>6. Animations driving high-frequency value reads in Composition</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> RotatingIcon(angle: Float) {
+    Icon(
+        modifier = Modifier.rotate(angle),    <span class="com">// reads angle in COMPOSITION phase</span>
+        imageVector = Icons.Default.Star,
+        contentDescription = <span class="kw">null</span>
+    )
+    <span class="com">// → recomposes EVERY animation frame</span>
+}</code></pre>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Composable</span>
+<span class="kw">fun</span> RotatingIcon(angle: Float) {
+    Icon(
+        modifier = Modifier.graphicsLayer { rotationZ = angle },   <span class="com">// reads in DRAWING phase</span>
+        imageVector = Icons.Default.Star,
+        contentDescription = <span class="kw">null</span>
+    )
+    <span class="com">// → no recomposition, no relayout, just GPU-side transform per frame</span>
+}</code></pre>
+
+<h4>7. Index as list key (or no key)</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code>LazyColumn {
+    itemsIndexed(users) { index, user -&gt;
+        UserRow(user)                         <span class="com">// no key</span>
+    }
+}</code></pre>
+
+<p><strong>Why:</strong> Removing user #0 makes Compose think every other user changed (because each one shifted positions). Massive recomposition cascade.</p>
+
+<p><strong>Good:</strong></p>
+<pre><code>LazyColumn {
+    items(users, key = { it.id }) { user -&gt;
+        UserRow(user)                         <span class="com">// stable identity per row</span>
+    }
+}
+<span class="com">// Removing user #0 only animates that one row out; others are untouched.</span></code></pre>
+
+<h4>8. Big <code>data class</code> with one var field destroying stability</h4>
+
+<p><strong>Bad:</strong></p>
+<pre><code><span class="kw">data class</span> Profile(
+    <span class="kw">val</span> id: String,
+    <span class="kw">val</span> name: String,
+    <span class="kw">var</span> lastSeen: Long                    <span class="com">// var → unstable</span>
+)
+<span class="com">// Compose marks the whole class unstable; every Composable taking Profile loses skipping.</span></code></pre>
+
+<p><strong>Good:</strong></p>
+<pre><code><span class="anno">@Immutable</span>
+<span class="kw">data class</span> Profile(
+    <span class="kw">val</span> id: String,
+    <span class="kw">val</span> name: String,
+    <span class="kw">val</span> lastSeen: Long                    <span class="com">// all val</span>
+)
+<span class="com">// Or, if the property MUST be mutable, model it as State:</span>
+<span class="anno">@Stable</span>
+<span class="kw">class</span> ProfileVm {
+    <span class="kw">var</span> lastSeen <span class="kw">by</span> mutableStateOf(<span class="num">0L</span>)
+}</code></pre>
+
+<h3>How to verify your fixes worked</h3>
+
+<ol>
+  <li><strong>Layout Inspector → "Show recomposition counts"</strong> — interact with the screen; counts should not climb absurdly. Anything &gt; 10× higher than items appearing on screen is a smell.</li>
+  <li><strong>Compose Compiler metrics</strong> (Gradle <code>composeCompiler.metricsDestination</code>) — generated <code>*-composables.txt</code> shows which Composables are <code>skippable</code> and <code>restartable</code>. Goal: every Composable that takes parameters should be both.</li>
+  <li><strong>Macrobenchmark <code>FrameTimingMetric</code></strong> — measure end-to-end frame time on a release build. Should be under 16.6 ms (60 Hz) or 8.3 ms (120 Hz).</li>
+</ol>
+
+<h3>The interview-cheat answer to "How do I avoid unnecessary recompositions?"</h3>
+
+<div class="callout good">
+Memorize this 5-step answer. Delivers in 30 seconds, demonstrates depth:
+<ol>
+  <li>"I generate the Compose Compiler stability report — it tells me which Composables are skippable and which aren't, with reasons."</li>
+  <li>"For unstable parameters (List, Map, classes from other modules), I switch to <code>ImmutableList</code> from <code>kotlinx.collections.immutable</code> or annotate the type <code>@Immutable</code>."</li>
+  <li>"I defer State reads to the lowest level — read <code>name</code> in a leaf Text, not the whole UiState in a parent Container."</li>
+  <li>"For animated values, I move reads to the drawing phase via <code>Modifier.graphicsLayer { }</code> instead of value-form modifiers like <code>Modifier.rotate</code>."</li>
+  <li>"I always provide stable keys in lazy lists — entity ID, never index — and avoid passing inline lambdas that capture different values per row."</li>
+</ol>
+</div>
+
 <!-- =============== 7. SIDE EFFECTS =============== -->
 <h2 id="s7">7. Side effects — picking the right effect API</h2>
 

@@ -1250,6 +1250,112 @@
   <li>StateFlow + collectAsStateWithLifecycle gives the same lifecycle awareness as LiveData but composes better with coroutines.</li>
 </ul>
 
+<!-- =============== EVERGREEN RULES =============== -->
+<h2 id="severgreen">★ Evergreen rules — how to evaluate any new architecture (the developer thought process)</h2>
+
+<p>Patterns come and go. Twitter explodes about a new architecture every 6 months. But the underlying principles that make architecture "good" are 50 years old and don't change. When the next "MVU" or "TCA-Android" or "FlowRedux" or "Effect-Action-State" lands, judge it against these — not against the hype.</p>
+
+<h3>The 12 timeless rules (these don't change, ever)</h3>
+
+<table>
+  <thead><tr><th>Rule</th><th>What it means</th><th>Why it never goes out of style</th></tr></thead>
+  <tbody>
+    <tr><td>Separation of concerns</td><td>One class / module / function does one thing</td><td>Lets you reason locally without holding the whole system in your head</td></tr>
+    <tr><td>Single source of truth</td><td>One canonical place per piece of state</td><td>Prevents drift, race conditions, "which copy is right?"</td></tr>
+    <tr><td>Unidirectional data flow</td><td>State flows down; events flow up</td><td>Predictable, debuggable; matches how humans reason about programs</td></tr>
+    <tr><td>Dependency inversion</td><td>High-level modules depend on abstractions, not low-level details</td><td>Lets you replace impls (real DB ↔ fake DB) without touching policy</td></tr>
+    <tr><td>Composition over inheritance</td><td>Build behavior by combining small pieces, not extending a class hierarchy</td><td>Inheritance hard-codes relationships at compile time; composition is changeable at runtime</td></tr>
+    <tr><td>Pure functions</td><td>Same input → same output, no hidden side effects</td><td>Trivially testable, parallelizable, cacheable</td></tr>
+    <tr><td>Immutability</td><td>State doesn't mutate in place; replaced wholesale</td><td>Eliminates whole classes of bugs (race, time-travel)</td></tr>
+    <tr><td>Smallest possible scope</td><td>Variables, dependencies, lifetimes — make them tiny</td><td>Smaller scope = fewer interactions = fewer bugs</td></tr>
+    <tr><td>Explicit over implicit</td><td>Name the dependency, name the side effect</td><td>Hidden behavior is the source of "spooky" bugs</td></tr>
+    <tr><td>Test seams at boundaries</td><td>Interface every layer crossing</td><td>Lets you test in isolation without dragging in the universe</td></tr>
+    <tr><td>Fail loudly, locally</td><td>Crash where the error originates, with enough context</td><td>Hidden errors propagate and become impossible to debug</td></tr>
+    <tr><td>Reversibility</td><td>Easy to undo a decision later</td><td>Architectural choices that lock you in are dangerous</td></tr>
+  </tbody>
+</table>
+
+<p>These came from Smalltalk, C++ design, Erlang, Haskell, Domain-Driven Design — long before Android existed. <strong>Every "good" Android architecture is a different framing of these rules.</strong> When you see a pattern that "skips" or "transcends" them, be skeptical.</p>
+
+<h3>The 10-question checklist for any new architecture</h3>
+
+<p>A new pattern just dropped on Twitter. Before you adopt it, walk through these:</p>
+
+<ol>
+  <li><strong>What problem does it solve that I actually have?</strong>
+    <ul>
+      <li>"It's the new hotness" → not a reason</li>
+      <li>"It scales the team better" → maybe (depends on team size)</li>
+      <li>"It catches bug class X at compile time" → strong reason if you've shipped X bugs</li>
+      <li>"It enables use case Y the old pattern struggles with" → strong reason if you have Y</li>
+    </ul>
+  </li>
+  <li><strong>Does it follow the 12 timeless rules above?</strong> Walk through each. Patterns that violate one need a very strong justification.</li>
+  <li><strong>What's the escape hatch?</strong> All abstractions leak. What's your plan when the framework can't model your problem? Patterns without escape hatches become handcuffs at scale.</li>
+  <li><strong>What's the migration path?</strong> Big-bang rewrites are almost always wrong. Can the new pattern coexist with existing code (per-screen / per-module migration)?</li>
+  <li><strong>What's the lock-in level?</strong> Tied to a specific library, vendor, or community? "If this library disappears tomorrow, can I extract the architecture pattern?" Patterns that work with standard kotlinx + Jetpack &gt; patterns that need a niche dependency.</li>
+  <li><strong>Who's using it in production?</strong> Open-source isn't enough. Look for: apps with &gt; 10M users running on it for &gt; 1 year; multiple teams in different domains; clear postmortems of failures.</li>
+  <li><strong>What's the testing story?</strong> A pattern without a clear testing approach is not production-ready. "How do I unit-test the presentation logic?" should have a one-line answer.</li>
+  <li><strong>What's the tooling story?</strong> IDE support, autocompletion, navigation, refactoring, lint rules. Without tooling, every new dev re-learns by reading a 200-page book.</li>
+  <li><strong>What does it cost in code volume?</strong> Boilerplate is real. If a typical screen needs 5 files, that's 50 files for 10 screens. Justified only if it prevents real bugs you've shipped.</li>
+  <li><strong>What's the net SOLID rating?</strong> Where does the pattern strengthen each SOLID principle (§3, §16)? Where does it weaken any?</li>
+</ol>
+
+<h3>Common "new architecture" red flags</h3>
+
+<table>
+  <thead><tr><th>Red flag</th><th>What it really means</th></tr></thead>
+  <tbody>
+    <tr><td>"Eliminates need for ViewModels"</td><td>Misses why ViewModels exist (config-change survival, framework integration)</td></tr>
+    <tr><td>"No DI needed"</td><td>Hides dependencies; just makes them implicit + global</td></tr>
+    <tr><td>"It's like Redux but simpler"</td><td>Often skips Redux's actual guarantees (time-travel, replay, devtools)</td></tr>
+    <tr><td>"Compose-only" pattern that bypasses ViewModel</td><td>Loses lifecycle integration; reinvents Jetpack</td></tr>
+    <tr><td>Heavy use of macros / annotation processing</td><td>Build complexity, debugging difficulty, IDE struggles</td></tr>
+    <tr><td>Author works at Big Co, no production case study</td><td>Not battle-tested; could be Big Co's internal experiment</td></tr>
+    <tr><td>All examples are TODO apps</td><td>The pattern fails on real-world complexity</td></tr>
+    <tr><td>"Everything is reactive"</td><td>Reactive everything = stack traces become useless; debugging gets harder</td></tr>
+    <tr><td>Marketing pages with zero discussion of trade-offs</td><td>Author hasn't shipped it at scale yet; doesn't know the pain points</td></tr>
+  </tbody>
+</table>
+
+<h3>The contrarian rule — when boring wins</h3>
+
+<div class="callout good">
+<strong>Most production teams should pick</strong> <em>MVVM + Hilt + Compose + Room + Retrofit + Coroutines/Flow + Single-Activity Navigation</em> — and stop.<br/><br/>
+This boring stack:
+<ul>
+  <li>Has 5+ years of production track record at scale</li>
+  <li>Is what Google's docs assume</li>
+  <li>Works for 90% of apps</li>
+  <li>New hires already know it</li>
+  <li>Has the deepest Stack Overflow / docs / tooling support</li>
+</ul>
+Reach for fancier patterns only when you have a <strong>specific reason</strong> the boring stack can't solve.
+</div>
+
+<h3>How to learn ANY new architecture in 10 minutes</h3>
+
+<p>When a new architecture pattern lands, read its docs in this order. Once you can answer these 6 questions, you understand it — regardless of what it's called:</p>
+
+<ol>
+  <li><strong>What does the View talk to?</strong> (Presenter? ViewModel? Component? Store?)</li>
+  <li><strong>What is the source of state?</strong> (Mutable? Immutable? Single object? Multiple flows?)</li>
+  <li><strong>How do events get from View to logic?</strong> (Method call? Intent? Action? Event? Reducer?)</li>
+  <li><strong>How does state get from logic to View?</strong> (Observable? Callback? Subscription? Recomposition?)</li>
+  <li><strong>What's the lifecycle story?</strong> (Survives rotation? Process death? When is it cleared?)</li>
+  <li><strong>What's the testing story?</strong> (Unit-test the logic? Mock or fake what?)</li>
+</ol>
+
+<p>Bonus question 7: <em>What does this pattern call the same thing that MVVM calls "ViewModel" and "UiState"?</em> Most patterns are MVVM with renamed parts.</p>
+
+<h3>The mental rule that beats all hype</h3>
+
+<div class="callout">
+<strong>"Do my colleagues understand this in 10 minutes? Can a new hire be productive in a week?"</strong><br/><br/>
+If yes → adopt it.<br/>
+If no → the cleverness cost is too high. Stay boring.
+</div>
+
 <!-- =============== 17. RELATED PATTERNS =============== -->
 <h2 id="s17">17. Related patterns worth knowing</h2>
 
