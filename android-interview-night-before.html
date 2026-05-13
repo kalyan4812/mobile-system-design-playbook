@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Android Interview — Night-Before Single-Page Summary</title>
+<meta name="description" content="A focused, ~6-page distillation of all 11 cheat sheets in this repo. Designed for 20-30 minute reading the night before any Android interview. Read it last; sleep on it." />
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --fg-muted: #5a6470; --fg-strong: #0d1117;
+    --accent: #1c5cd8; --accent-2: #6c43e0;
+    --surface: #f6f8fa; --surface-2: #eef3ff; --border: #e5e9ef;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --code-border: #21262d;
+    --good: #1f7a3f; --warn: #8a5b00; --bad: #b32424;
+  }
+  [data-theme="dark"] {
+    --bg: #0e1117; --fg: #c9d1d9; --fg-muted: #8b949e; --fg-strong: #f0f6fc;
+    --accent: #58a6ff; --accent-2: #a371f7;
+    --surface: #161b22; --surface-2: #1f2937; --border: #30363d;
+    --code-bg: #010409; --code-fg: #e6edf3; --code-border: #30363d;
+    --good: #5cd394; --warn: #f1c45c; --bad: #ff8c8c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--fg); background: var(--bg); line-height: 1.55; font-size: 15px; }
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 0 14px; } .sidebar { display: none; } }
+  .container { max-width: 880px; padding: 24px 8px 80px; }
+  .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 18px 6px 24px 0; border-right: 1px solid var(--border); font-size: 0.84rem; }
+  .sidebar a { display: block; color: var(--fg); text-decoration: none; padding: 4px 10px; border-radius: 6px; line-height: 1.3; }
+  .sidebar a:hover { background: var(--surface-2); color: var(--accent); }
+  .sidebar a.active { background: var(--surface-2); color: var(--accent); font-weight: 600; }
+  .topbar { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 8px 20px; display: flex; gap: 10px; align-items: center; backdrop-filter: blur(8px); }
+  .iconbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--fg); font-size: 0.82rem; cursor: pointer; }
+  .iconbtn:hover { background: var(--surface-2); }
+  .topbar .spacer { flex: 1; }
+  h1, h2, h3, h4 { font-weight: 700; line-height: 1.25; color: var(--fg-strong); }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -0.4px; }
+  h2 { font-size: 1.3rem; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--border); scroll-margin-top: 70px; }
+  h3 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--accent); }
+  h4 { font-size: 0.92rem; margin: 12px 0 4px; }
+  p { margin: 0 0 8px; }
+  .cover { text-align: center; padding: 36px 20px 28px; margin-bottom: 22px; background: linear-gradient(135deg, #1c5cd8 0%, #6c43e0 100%); color: #fff; border-radius: 14px; }
+  .cover h1 { color: #fff; font-size: 2.1rem; }
+  .cover .subtitle { font-size: 1rem; opacity: 0.92; margin-top: 6px; }
+  .cover .badges { margin-top: 16px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.4); padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; }
+  ul, ol { margin: 4px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  ul li::marker { color: var(--accent); }
+  code { background: var(--surface); color: #c7254e; padding: 2px 5px; border-radius: 4px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 0.86em; border: 1px solid var(--border); }
+  [data-theme="dark"] code { color: #ff7b72; background: var(--surface); }
+  .callout { background: rgba(28,92,216,0.07); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 10px 0; font-size: 0.93rem; }
+  .callout.warn { background: rgba(179,36,36,0.07); border-left-color: var(--bad); }
+  .callout.good { background: rgba(31,122,63,0.07); border-left-color: var(--good); }
+  .callout strong { color: var(--accent); }
+  .callout.warn strong { color: var(--bad); }
+  .callout.good strong { color: var(--good); }
+  .qa-block { background: var(--surface); border-left: 3px solid var(--accent-2); padding: 8px 14px; margin: 10px 0; border-radius: 0 6px 6px 0; }
+  .qa-block strong { color: var(--accent-2); display: block; margin-bottom: 2px; font-size: 0.92rem; }
+  .qa-block p { font-size: 0.92rem; margin: 4px 0 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 10px; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface); color: var(--fg-strong); font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.4px; }
+  .final-card { background: var(--surface); border: 2px solid var(--accent); border-radius: 10px; padding: 18px 22px; margin: 22px 0; font-size: 0.94rem; line-height: 1.7; }
+  .final-card h3 { margin-top: 0; }
+  .timer-tag { display: inline-block; background: rgba(108,67,224,0.12); color: var(--accent-2); border-radius: 999px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+  @media print {
+    body { font-size: 10.5pt; background: white; color: black; }
+    .layout { display: block; max-width: 100%; padding: 0; }
+    .sidebar, .topbar { display: none !important; }
+    .container { max-width: 100%; padding: 0; }
+    .cover { background: #1c5cd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: white !important; }
+    .cover h1 { color: white !important; }
+    h2 { page-break-after: avoid; }
+    .callout, .qa-block, table, .final-card { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <strong style="color: var(--accent); white-space: nowrap;">Night-Before · Single Page</strong>
+  <span class="spacer"></span>
+  <button class="iconbtn" id="themeToggle" title="Toggle theme">🌙</button>
+  <button class="iconbtn" onclick="window.print()" title="Print or save as PDF">🖨️ Print</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="container">
+
+<header class="cover" id="top">
+  <h1>Android Interview — Night Before</h1>
+  <div class="subtitle">All 11 cheat sheets distilled · ~20 minutes to read · then sleep</div>
+  <div class="badges">
+    <span class="badge">~6 pages</span>
+    <span class="badge">Pure signal</span>
+    <span class="badge">Read last</span>
+    <span class="badge">Don't learn — recall</span>
+  </div>
+</header>
+
+<section style="background: var(--surface); border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-size: 0.92rem;">
+  <strong>How to use this page:</strong> read top to bottom in one sitting (~20-30 min). Then close it, drink water, sleep 7+ hours. Don't try to learn new things — this is for last-mile recall of what you already know. If a section feels unfamiliar, you have NOT learned it; ignore the temptation to cram.
+</section>
+
+<!-- =============== 1. THE 10 UNIVERSAL ANSWERS =============== -->
+<h2 id="s1">1. The 10 universal answers <span class="timer-tag">5 min</span></h2>
+
+<p>These come up in <em>every</em> Android interview regardless of the system you're discussing. Memorize the one-liner.</p>
+
+<div class="qa-block">
+<strong>Q: How do you handle process death?</strong>
+<p>SavedStateHandle for in-flight UI state · Room/DataStore for durable data · WorkManager for queued work · on relaunch, restore from local before any network call.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you handle offline?</strong>
+<p>Room is the source of truth · UI observes a Flow from Room · writes go to Room first then an outbox · sync engine drains outbox via WorkManager when network returns.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you handle authentication?</strong>
+<p>OkHttp Interceptor adds the access token to every request · OkHttp Authenticator reactively refreshes on 401 and retries · refresh token in EncryptedSharedPreferences (Keystore-backed).</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you minimize battery impact?</strong>
+<p>WorkManager with NetworkType.UNMETERED + BatteryNotLow constraints · batch network calls · avoid wake locks · respect Doze.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you handle config changes (rotation)?</strong>
+<p>ViewModel survives · <code>stateIn(WhileSubscribed(5000))</code> keeps upstream alive across the brief detach · SavedStateHandle for primitive UI state.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you test this?</strong>
+<p>Repository as the test seam · fake data sources implement the same interface · ViewModel tested via runTest + Turbine · UI via Compose-test with fake repositories.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How do you instrument observability?</strong>
+<p>Structured analytics events · traceparent header for distributed tracing · Crashlytics for stability · Firebase Performance for cold start &amp; latency.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: How does this scale to 100M users?</strong>
+<p>Mobile-side: this is constant per device · backend: stateless API tier, partition by user_id, CDN for static assets, push-based fanout has issues with celebrities, fall back to pull or hybrid.</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: Encryption at rest?</strong>
+<p>Sensitive blobs via EncryptedSharedPreferences / EncryptedFile · Room SQLite via SQLCipher if needed · secrets in Android Keystore (hardware-backed where TEE available).</p>
+</div>
+
+<div class="qa-block">
+<strong>Q: What about iOS parity?</strong>
+<p>Architecture is platform-agnostic above the local-storage layer · share API contracts via OpenAPI · share business rules via KMP if the team adopts it · don't share UI.</p>
+</div>
+
+<!-- =============== 2. THE 90-SEC OPENING =============== -->
+<h2 id="s2">2. The 90-second universal opening (memorize verbatim) <span class="timer-tag">3 min</span></h2>
+
+<div class="callout good" style="line-height: 1.7;">
+<strong>Sec 0-20 — Frame requirements:</strong> "Before I dive in, let me confirm scope. The functional asks are <em>X, Y, Z</em>. Non-functional dimensions I'll explicitly call out: offline-first, battery, p95 latency. Any constraints on regions or scale I should know?"<br/><br/>
+<strong>Sec 20-40 — Estimate scale:</strong> "Roughly N DAU × M sessions × K events ≈ X RPS peak and Y MB per user of local storage. Fits comfortably in Room; means a single OkHttp client with HTTP/2 connection pool."<br/><br/>
+<strong>Sec 40-60 — Architecture:</strong> "Single source of truth in Room with unidirectional flow: Repository → ViewModel (StateFlow) → Compose UI. Network responses write into Room; UI only reads from Room. Gives offline support, predictable rotation/process death behavior, clean test seam."<br/><br/>
+<strong>Sec 60-80 — Components:</strong> "OkHttp + Retrofit with auth interceptor and refresh Authenticator; real-time via WebSocket wrapped in callbackFlow with exponential backoff; background work via WorkManager with NetworkType.CONNECTED + idempotency keys."<br/><br/>
+<strong>Sec 80-90 — Pre-empt failures:</strong> "Failure modes I want to address: token expiry mid-request, WebSocket drops, process death mid-write, Room migration failures. I'll cover each as I walk through."
+</div>
+
+<p>Say only that, and you've separated yourself from 70% of candidates. Now you can actually start designing.</p>
+
+<!-- =============== 3. ARCHITECTURE =============== -->
+<h2 id="s3">3. Architecture — pick one in 10 seconds <span class="timer-tag">2 min</span></h2>
+
+<table>
+  <thead><tr><th>Use</th><th>Pick</th></tr></thead>
+  <tbody>
+    <tr><td>New Compose app, simple-to-medium screens</td><td>MVVM</td></tr>
+    <tr><td>Complex async screens (chat, video, multi-step forms)</td><td>MVI for those screens; MVVM for the rest</td></tr>
+    <tr><td>Multi-platform (Android + iOS via KMP)</td><td>Clean Architecture in shared module + MVVM/MVI per platform UI</td></tr>
+    <tr><td>Legacy Java codebase</td><td>MVP for incremental migration</td></tr>
+    <tr><td>Multi-team enterprise</td><td>Multi-module + Clean + MVVM/MVI per feature</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Where things go (universal):</strong></p>
+<ul>
+  <li>Network/DB calls → inside Repository; never in ViewModel</li>
+  <li>WorkManager → enqueued from Repository or UseCase</li>
+  <li>ForegroundService → started from Application or controller VM</li>
+  <li>ContentProvider → wrap in DataSource interface</li>
+  <li>BroadcastReceiver → notify Repository → it updates state Flow</li>
+  <li>Hilt → @HiltAndroidApp on App, @HiltViewModel on VMs, @Module for repos</li>
+  <li>One-shot events → Channel or SharedFlow (replay=0); never StateFlow</li>
+</ul>
+
+<!-- =============== 4. COROUTINES =============== -->
+<h2 id="s4">4. Coroutines &amp; Flow <span class="timer-tag">2 min</span></h2>
+
+<p><strong>Mental model:</strong> compiler converts each suspend into a state machine taking a Continuation. Suspension means storing state and returning <code>COROUTINE_SUSPENDED</code>; resumption is a callback that jumps to the next state. No threads held while waiting.</p>
+
+<p><strong>Builders:</strong> <code>launch</code> = fire-and-forget · <code>async</code> = need result (parallel) · <code>runBlocking</code> = tests/bridging only · <code>coroutineScope { }</code> = all-or-nothing parallel · <code>supervisorScope { }</code> = independent parallel · <code>withContext(d)</code> = switch dispatcher · <code>withTimeout(ms)</code>.</p>
+
+<p><strong>Dispatchers:</strong> Main = UI · Default = CPU · IO = blocking I/O · <code>Default</code> and <code>IO</code> share the SAME thread pool (only the cap differs).</p>
+
+<p><strong>Structured concurrency:</strong> Parent waits for children · cancel parent → cancels all children · child fails → cancels parent (unless supervisor) · cancellation = <code>CancellationException</code> at suspension points · cooperative — tight CPU loop needs <code>yield()</code>.</p>
+
+<p><strong>Hot vs Cold:</strong> Cold (<code>flow { }</code>) restarts per collector. Hot: <code>StateFlow</code> (state + initial), <code>SharedFlow</code> (events + replay), <code>Channel</code> (point-to-point). For UI: <code>stateIn(WhileSubscribed(5000))</code>.</p>
+
+<p><strong>Operators you'll use:</strong> <code>map</code>, <code>filter</code>, <code>distinctUntilChanged</code>, <code>debounce</code>, <code>flatMapLatest</code> (search), <code>combine</code> (latest of all), <code>flowOn</code>, <code>buffer</code>, <code>conflate</code>, <code>onEach</code>, <code>catch</code>, <code>retry</code>.</p>
+
+<p><strong>Scope decision:</strong> ViewModel → <code>viewModelScope</code> · Composable event → <code>rememberCoroutineScope()</code> · Activity/Fragment View → <code>lifecycleScope</code> + <code>repeatOnLifecycle(STARTED)</code> · Worker → <code>coroutineScope { }</code> inside doWork · long-lived component → custom <code>CoroutineScope(SupervisorJob() + dispatcher)</code> with manual cancel · <strong>NEVER</strong> <code>GlobalScope</code>.</p>
+
+<p><strong>Testing:</strong> <code>runTest</code> + virtual time + <code>StandardTestDispatcher</code> · <code>Dispatchers.setMain(d)</code> in setUp · <code>Turbine.test { awaitItem() }</code>.</p>
+
+<!-- =============== 5. COMPOSE =============== -->
+<h2 id="s5">5. Jetpack Compose <span class="timer-tag">2 min</span></h2>
+
+<p><strong>Mental model:</strong> UI = f(state). Compose Compiler rewrites every <code>@Composable</code> to inject a Composer + change-tracking bitmask + restart group. Composer maintains the slot table (flat gap-buffer array). Snapshot system tracks State reads per RecomposeScope. State change → smallest enclosing scope re-runs next frame.</p>
+
+<p><strong>State:</strong> <code>mutableStateOf</code> / <code>mutableIntStateOf</code> · <code>remember</code> for in-composition, <code>rememberSaveable</code> for process death · <code>derivedStateOf</code> + <code>remember</code> for noisy inputs → rare output. Hoist state to lowest common ancestor.</p>
+
+<p><strong>Side effects (decision tree):</strong> <code>LaunchedEffect(key)</code> — coroutine, restart on key change · <code>DisposableEffect(key)</code> — register/unregister with onDispose · <code>SideEffect</code> — publish to non-Compose code · <code>rememberCoroutineScope()</code> — launch from event handlers · <code>produceState</code> — async source → State · <code>rememberUpdatedState</code> — capture latest in long-running effect.</p>
+
+<p><strong>Performance — the 5 fixes:</strong></p>
+<ol>
+  <li>Read Compose Compiler stability report (every Composable should be <code>skippable</code>)</li>
+  <li>For unstable params, use <code>ImmutableList</code> from kotlinx.collections.immutable or annotate <code>@Immutable</code></li>
+  <li>Defer State reads to the lowest level — read <code>name</code> in a leaf, not the whole UiState in a parent</li>
+  <li>For animated values, use <code>Modifier.graphicsLayer { }</code> (drawing phase) over value-modifiers like <code>Modifier.rotate</code></li>
+  <li>Stable keys in lazy lists — entity ID, never index</li>
+</ol>
+
+<p><strong>3 phases per frame:</strong> Composition → Layout → Drawing. Modifiers with lambdas (<code>offset { }</code>, <code>graphicsLayer { }</code>) defer reads to later phases — no recomposition.</p>
+
+<!-- =============== 6. HILT / DI =============== -->
+<h2 id="s6">6. Hilt &amp; DI <span class="timer-tag">1 min</span></h2>
+
+<p><strong>Setup:</strong> <code>@HiltAndroidApp</code> on Application · <code>@AndroidEntryPoint</code> on Activity/Fragment/Service · <code>@HiltViewModel</code> on ViewModels · <code>@Module @InstallIn(...)</code> for <code>@Provides</code>/<code>@Binds</code> · KSP plugin for processing.</p>
+
+<p><strong>Bindings:</strong> <code>@Provides</code> for 3rd-party / custom construction · <code>@Binds</code> (abstract) for interface → impl · <code>@IntoSet</code>/<code>@IntoMap</code> for multibinding · <code>@Qualifier</code> for same-type disambiguation · <code>@AssistedInject + @Assisted</code> for runtime params (Workers).</p>
+
+<p><strong>Scopes (smallest that fits):</strong> <code>@Singleton</code> (app) · <code>@ActivityRetainedScoped</code> (rotation-survives, multi-Fragment shared state) · <code>@ViewModelScoped</code> · <code>@ActivityScoped</code> · <code>@FragmentScoped</code> · no annotation = fresh per request.</p>
+
+<p><strong>Critical:</strong> <code>@Singleton</code> holding Activity reference = leak · KMP needs Koin (Hilt is Android-only).</p>
+
+<!-- =============== 7. TESTING =============== -->
+<h2 id="s7">7. Testing <span class="timer-tag">1 min</span></h2>
+
+<p><strong>Stack:</strong> JUnit 5 (JVM) / Kotest (KMP) · MockK (mocks) + hand-written fakes (preferred for repos) · kotlinx-coroutines-test + Turbine · MockWebServer for HTTP · Room in-memory for DAO · Robolectric for Android API on JVM · Compose Test rule for UI · Hilt testing for DI integration · Paparazzi/Roborazzi for screenshots.</p>
+
+<p><strong>Layer → approach:</strong></p>
+<ul>
+  <li>Plain class / UseCase / ViewModel / Repository → JUnit 5 + fakes</li>
+  <li>Room DAO → instrumented + in-memory DB</li>
+  <li>Retrofit Api → JUnit 5 + MockWebServer</li>
+  <li>Composable → Compose test rule (hoist state for testability)</li>
+  <li>Service → extract logic to plain class, test that</li>
+  <li>ContentProvider → wrap in DataSource interface, test through that</li>
+</ul>
+
+<p><strong>Testability principles:</strong> constructor injection · depend on interfaces · inject dispatcher + clock · pure functions · hoist Compose state · no hidden global state.</p>
+
+<p><strong>Avoid:</strong> <code>runBlocking</code> in tests · mocks for repositories (use fakes) · testing private methods · shared mutable fixtures · <code>Thread.sleep</code> · pursuing 100% coverage.</p>
+
+<!-- =============== 8. PERF + SECURITY =============== -->
+<h2 id="s8">8. Performance + Security <span class="timer-tag">2 min</span></h2>
+
+<p><strong>Perf — biggest levers:</strong></p>
+<ul>
+  <li>Baseline Profile (cold start +20-40%, scroll +30-50%)</li>
+  <li>R8 minify + shrink (APK -30-60%)</li>
+  <li>App Startup library (consolidate ContentProviders)</li>
+  <li>StrictMode in debug; never main-thread I/O in prod</li>
+  <li>Compose: stable params, defer reads to lower phases, derivedStateOf</li>
+  <li>Coil/Glide HARDWARE bitmap + downsample at decode</li>
+  <li>WorkManager constraints (UNMETERED, BatteryNotLow)</li>
+  <li>KSP over kapt</li>
+</ul>
+
+<p><strong>Security — must-have layers:</strong></p>
+<ul>
+  <li>Network Security Config + cert pinning + at least 1 backup pin</li>
+  <li>Keystore-backed encryption for refresh tokens</li>
+  <li>BiometricPrompt + CryptoObject for high-stakes ops</li>
+  <li>Play Integrity for signup / payment endpoints</li>
+  <li>R8 obfuscation + mapping.txt to Crashlytics + Play</li>
+  <li>App Links + autoVerify + assetlinks.json</li>
+  <li>Custom Tabs over WebView for external URLs</li>
+  <li>Photo Picker / Scoped Storage over READ_EXTERNAL_STORAGE</li>
+  <li>android:allowBackup=false (or per-file rules)</li>
+</ul>
+
+<!-- =============== 9. GRADLE =============== -->
+<h2 id="s9">9. Gradle <span class="timer-tag">1 min</span></h2>
+
+<p><strong>3 phases per build:</strong> Initialization → Configuration → Execution. Configuration is expensive; configuration cache skips it.</p>
+
+<p><strong>Build types vs flavors vs variants:</strong> Build type = HOW (debug/release) · Flavor = WHAT (qa/prod, free/paid) · Variant = flavor × buildType (qaDebug, prodRelease) · Per-variant configs: <code>debugImplementation</code>, <code>qaImplementation</code>.</p>
+
+<p><strong>Dependency configs:</strong> <code>implementation</code> (default; hidden from consumers) · <code>api</code> (exposed; consumers see types) · <code>compileOnly</code>/<code>runtimeOnly</code> · <code>ksp</code>/<code>kapt</code> · <code>testImplementation</code>/<code>androidTestImplementation</code>.</p>
+
+<p><strong>Performance trio in <code>gradle.properties</code>:</strong></p>
+<ul>
+  <li><code>org.gradle.daemon=true</code></li>
+  <li><code>org.gradle.parallel=true</code></li>
+  <li><code>org.gradle.caching=true</code></li>
+  <li><code>org.gradle.configuration-cache=true</code></li>
+</ul>
+
+<p><strong>Critical clarification:</strong> Build scripts (Groovy/Kotlin DSL) are build-time only — they run on developer/CI machine. The APK ships compiled DEX bytecode + resources + manifest + signing. NO Groovy, NO build scripts in the APK.</p>
+
+<!-- =============== 10. CI/CD =============== -->
+<h2 id="s10">10. CI/CD <span class="timer-tag">1 min</span></h2>
+
+<p><strong>Definitions:</strong> CI = every push automatically built + tested. CD = every successful build automatically ready (Delivery) or goes (Deployment) to users.</p>
+
+<p><strong>Pipeline phases:</strong> Trigger → Checkout → Setup JDK + SDK → Restore Gradle cache → Lint → Unit tests → Build AAB → Sign → Upload to Play Store → Notify.</p>
+
+<p><strong>Tools:</strong> Personal/hobby = GitHub Actions · mobile-first team = Bitrise / Codemagic · monorepo = CircleCI · enterprise self-hosted = Jenkins / GitLab CI.</p>
+
+<p><strong>Skills needed:</strong> YAML (2-3 hours) · Bash basics · Gradle CLI (assembleRelease, bundleRelease) · optional: Fastlane lanes, Jenkins Groovy.</p>
+
+<p><strong>Android-specific:</strong> Sign with keystore from base64 secret · use product flavors for environments · upload AAB (not APK) · always upload mapping.txt · use Gradle Play Publisher or Fastlane <code>upload_to_play_store</code> · staged rollout for prod (10% → 50% → 100%).</p>
+
+<!-- =============== 11. SYSTEM DESIGN =============== -->
+<h2 id="s11">11. Mobile System Design — universal opening + 5 most-asked <span class="timer-tag">2 min</span></h2>
+
+<p>The 90-second universal opening (memorized in §2 above) handles the framing for ANY system you're asked. Beyond the opening, here are the 5 systems most likely to come up:</p>
+
+<table>
+  <thead><tr><th>System</th><th>The one mental hook</th></tr></thead>
+  <tbody>
+    <tr><td>Image Loader (Glide-style)</td><td>Pipeline: mem → disk → net → decode w/ inSampleSize → cache write. Lifecycle-bound; BitmapPool reuse.</td></tr>
+    <tr><td>Chat (WhatsApp)</td><td>WS in foreground + FCM wakeup; outbox + idempotent UUID; Lamport clock; E2EE via Signal protocol; multi-device fanout per recipient.</td></tr>
+    <tr><td>Social Feed (Twitter/IG)</td><td>Pager + RemoteMediator + cursor; Room is truth; single ExoPlayer to most-visible video; impressions after 50% visible &amp; 500 ms dwell.</td></tr>
+    <tr><td>Uber Rider</td><td>Sealed RideState state machine (Idle → Searching → Matched → OnTrip → Completed); WS for driver dots filtered to viewport; ForegroundService during trip.</td></tr>
+    <tr><td>Spotify (offline music)</td><td>MediaSessionService + ExoPlayer + AudioFocus + becoming-noisy receiver; SimpleCache + Widevine offline license; gapless via ExoPlayer queue.</td></tr>
+  </tbody>
+</table>
+
+<p><strong>The 6-step framework that works for ANY new system you get thrown:</strong></p>
+<ol>
+  <li>Functional + non-functional requirements (offline, battery, p95 latency)</li>
+  <li>Back-of-envelope scale (DAU × sessions × events → RPS, MB/user)</li>
+  <li>Architecture (Compose ← StateFlow ← ViewModel ← Repository ← Room/Network)</li>
+  <li>Component walkthrough (OkHttp, Retrofit, WorkManager, etc.)</li>
+  <li>Failure modes (token expiry, WS drops, process death, migration)</li>
+  <li>Trade-offs + alternatives (push vs pull, REST vs WS, etc.)</li>
+</ol>
+
+<!-- =============== 12. ANTI-PATTERNS =============== -->
+<h2 id="s12">12. Anti-patterns that drop you a level <span class="timer-tag">1 min</span></h2>
+
+<ul>
+  <li>Treating the phone as a thin client — saying "the client just calls REST" instead of using Room/WorkManager/Keystore</li>
+  <li>Calling network from UI/ViewModel directly — always: UI ← Room ← Repository ← Network</li>
+  <li>Saying "I'll use MVVM" without explaining state ownership / who mutates / how rotation+process death are handled</li>
+  <li>Ignoring battery — no WorkManager constraints mentioned</li>
+  <li>Using <code>runBlocking</code> or <code>GlobalScope</code></li>
+  <li>Floats/doubles for money — always integer cents or BigDecimal</li>
+  <li>Skipping idempotency on create/purchase</li>
+  <li>"I'll add caching later" — caching is a design decision with TTL + eviction</li>
+  <li>Forgetting process death — "what if OS kills my app right here?" is the question that separates Senior from Staff</li>
+  <li>Hand-waving conflict resolution — "server timestamp wins; loser preserved as conflict copy" or "CRDT for collaborative"</li>
+  <li>No mention of observability (Crashlytics, traces, metrics)</li>
+</ul>
+
+<!-- =============== 13. THE FINAL CARD =============== -->
+<h2 id="s13">13. If you forget everything else, remember this <span class="timer-tag">read twice</span></h2>
+
+<div class="final-card">
+  <h3>The 7 things you MUST be able to say</h3>
+  <ol>
+    <li><strong>"Room is the source of truth; UI observes a Flow from Room."</strong> Solves offline + rotation + process death + testing in one sentence.</li>
+    <li><strong>"OkHttp Interceptor adds the token; Authenticator refreshes on 401."</strong> Solves auth.</li>
+    <li><strong>"WorkManager with constraints (UNMETERED, BatteryNotLow) and idempotency keys."</strong> Solves background + battery + retries.</li>
+    <li><strong>"SavedStateHandle for in-flight state; ViewModel survives rotation; Room survives process death."</strong> Solves Android lifecycle.</li>
+    <li><strong>"<code>stateIn(WhileSubscribed(5000))</code> + <code>collectAsStateWithLifecycle</code>."</strong> Solves modern Compose state collection.</li>
+    <li><strong>"Sealed UiState class + StateFlow; one-shot events via SharedFlow(replay=0)."</strong> Solves UI state modeling cleanly.</li>
+    <li><strong>"Hilt @Singleton for shared (DB, OkHttp); @HiltViewModel; @TestInstallIn replaces modules in tests."</strong> Solves DI.</li>
+  </ol>
+
+  <h3>The 5 anti-patterns to NEVER say</h3>
+  <ol>
+    <li>"I'll use GlobalScope.launch."</li>
+    <li>"I'll just call the API in onCreate."</li>
+    <li>"I'll fetch on every screen open."</li>
+    <li>"I'll use Double for prices."</li>
+    <li>"I'll add tests / handle errors / think about offline later."</li>
+  </ol>
+
+  <h3>The single most powerful framing</h3>
+  <p>When the interviewer asks anything design-y: start with <strong>"The single source of truth is X. Reads observe a Flow from X. Writes go to X first then queue an outbox for sync. The outbox guarantees delivery across process death; WorkManager respects battery; conflicts are explicit and resolvable."</strong> — this single template covers 80% of mobile system design questions.</p>
+
+  <h3>Tomorrow morning</h3>
+  <ul>
+    <li>Re-read the 90-sec opening (§2) once — say it out loud</li>
+    <li>Re-read the 10 universal answers (§1) once</li>
+    <li>That's it. No new material.</li>
+    <li>Eat a real breakfast. Drink water. Walk.</li>
+    <li>You've prepared. Trust the work.</li>
+  </ul>
+</div>
+
+<section style="margin-top: 30px; text-align: center; padding: 18px; background: var(--surface); border-radius: 10px; font-size: 0.92rem;">
+  <p style="margin: 0;">
+    Sleep 7+ hours. The interview will go well.
+  </p>
+</section>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const THEME_KEY = 'nb-theme';
+  const root = document.documentElement;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    if (isDark) { root.removeAttribute('data-theme'); localStorage.setItem(THEME_KEY, 'light'); document.getElementById('themeToggle').textContent = '🌙'; }
+    else        { root.setAttribute('data-theme', 'dark'); localStorage.setItem(THEME_KEY, 'dark'); document.getElementById('themeToggle').textContent = '☀️'; }
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const html = ['<a href="#top" style="font-weight:600;">↑ Top</a>'];
+  document.querySelectorAll('h2[id]').forEach(h2 => {
+    html.push(`<a href="#${h2.id}" data-target="${h2.id}">${h2.textContent.replace(/\d+\s*min|read twice/g, '').trim()}</a>`);
+  });
+  sidebar.innerHTML = html.join('');
+
+  const linksById = {};
+  document.querySelectorAll('.sidebar a[data-target]').forEach(a => linksById[a.dataset.target] = a);
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const link = linksById[e.target.id];
+      if (!link) return;
+      if (e.isIntersecting) {
+        document.querySelectorAll('.sidebar a.active').forEach(x => x.classList.remove('active'));
+        link.classList.add('active');
+        link.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  document.querySelectorAll('h2[id]').forEach(h => obs.observe(h));
+})();
+</script>
+</body>
+</html>
